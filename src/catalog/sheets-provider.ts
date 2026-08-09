@@ -76,6 +76,12 @@ export class GoogleSheetsCatalogProvider implements CatalogProvider {
     }
     return tiers;
   }
+  async wholesaleExchangeRate(): Promise<number | null> {
+    const [header = [], ...rows] = await this.rows("Productos!R:R");
+    if (!/valor\s*usdt|d[oó]lar|cambio/i.test(String(header[0] ?? ""))) return null;
+    const value = rows.map(row => sheetNumber(row[0])).find(candidate => candidate > 0);
+    return value ?? null;
+  }
   async businessValue(key: string): Promise<string | null> {
     const [, ...rows] = await this.rows("NEGOCIO!A:B");
     const row = rows.find(r => String(r[0]).trim().toLowerCase() === key.trim().toLowerCase());

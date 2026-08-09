@@ -11,6 +11,7 @@ export class FixtureCatalogProvider implements CatalogProvider {
   async products() { return structuredClone(this.productRows); }
   async flavors() { return structuredClone(this.flavorRows); }
   async wholesaleTiers() { return structuredClone(this.tiers); }
+  async wholesaleExchangeRate() { const value = Number(this.business.VALOR_USDT ?? this.business.DOLAR_CRIPTO ?? 0); return value > 0 ? value : null; }
   async businessValue(key: string) { return this.business[key] ?? null; }
   async registerSale(_sale: Sale) {}
   async decrementStock(lines: Array<{ sku: string; quantity: number }>) {

@@ -19,6 +19,8 @@ describe("contrato del plugin OpenClaw", () => {
       ,"reportar_llegada_sin_horario"
       ,"reportar_pedido_inmediato_app"
       ,"reportar_condicion_pago"
+      ,"preparar_venta_mayorista"
+      ,"reportar_comprobante_mayorista"
     ]));
     for (const tool of manifest.contracts.tools) expect(manifest.toolMetadata).toHaveProperty(tool);
   });

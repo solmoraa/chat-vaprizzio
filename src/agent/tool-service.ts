@@ -11,7 +11,7 @@ export class AgentToolService {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
-    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
@@ -151,6 +151,37 @@ export class AgentToolService {
         return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, ...quote };
       }
       case "listar_mayorista": return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, models: await this.catalog.wholesaleList() };
+      case "preparar_venta_mayorista": {
+        const model = String(args.model ?? "");
+        const quantity = Number(args.quantity);
+        const paymentMethod = String(args.paymentMethod ?? "transferencia").toLowerCase();
+        const deliveryMode = String(args.deliveryMode ?? "retiro").toLowerCase();
+        const shippingCostArs = args.shippingCostArs == null ? null : Number(args.shippingCostArs);
+        if (paymentMethod === "efectivo" && deliveryMode !== "retiro") return { action:"PAGO_INVALIDO", customerMessage:"En efectivo es únicamente retirando por el local. Para envíos trabajamos con transferencia." };
+        const quote = await this.catalog.wholesaleTotalArs(model, quantity);
+        if (!quote) return { action:"MODELO_O_CANTIDAD_INVALIDA", customerMessage:"Dame un segundo que lo consulto" };
+        if (!quote.exchangeRateArs || quote.subtotalArs == null) {
+          const result = await this.takeover.request(channel, customerId, "Falta valor USDT para cerrar venta mayorista", quantity, [model]);
+          return { action:"CONSULTAR_CAMBIO", customerMessage:"Dame un segundo que reviso el cambio", state:result.state, pausedUntil:result.pausedUntil };
+        }
+        if (deliveryMode === "envio" && shippingCostArs == null) return { action:"COTIZAR_ENVIO", customerMessage:"Pasame la dirección y el código postal así te cotizo el envío", subtotalArs:quote.subtotalArs };
+        const totalArs = quote.subtotalArs + (shippingCostArs ?? 0);
+        const money = new Intl.NumberFormat("es-AR").format(totalArs);
+        const bank = { alias:"Fabri.moraa", cvu:"0000003100052918257843", holder:"Fabrizio Tomas Mora" };
+        if (deliveryMode === "retiro") {
+          const result = await this.takeover.request(channel, customerId, `Venta mayorista para coordinar retiro - pago ${paymentMethod}`, quantity, [model, `Total: $${money}`]);
+          const paymentText = paymentMethod === "efectivo" ? `El total en efectivo es $${money}.` : `El total es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}.`;
+          return { action:"COORDINAR_RETIRO", customerMessage:`${paymentText} Dame un segundo que coordinamos el día y horario de retiro`, ...quote, shippingCostArs:0, totalArs, bank:paymentMethod === "transferencia" ? bank : undefined, state:result.state, pausedUntil:result.pausedUntil };
+        }
+        return { action:"ESPERAR_COMPROBANTE", customerMessage:`El total con envío es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}. Cuando transfieras mandame el comprobante 🙌`, ...quote, shippingCostArs, totalArs, bank };
+      }
+      case "reportar_comprobante_mayorista": {
+        const model = String(args.model ?? "");
+        const quantity = Number(args.quantity);
+        const deliveryMethod = String(args.deliveryMethod ?? "envío");
+        const result = await this.takeover.request(channel, customerId, "Comprobante recibido de venta mayorista: preparar y coordinar envío", quantity, [model, deliveryMethod]);
+        return { action:"PREPARAR_Y_ENVIAR", customerMessage:"Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago empezamos a preparar todo y coordinamos el envío. Para cualquier cosa estamos en contacto 😊", state:result.state, pausedUntil:result.pausedUntil };
+      }
       case "cerrar_conversacion": return { action: "CONVERSACION_CERRADA", customerMessage: "Gracias por escribirnos!", freshContextNextMessage: true, conversation: this.takeover.close(channel, customerId) };
       case "carrito_agregar": return { cart: this.cart.add(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_establecer": return { cart: this.cart.set(channel, customerId, String(args.sku), Number(args.quantity)) };

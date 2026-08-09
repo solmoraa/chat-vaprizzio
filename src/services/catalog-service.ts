@@ -71,5 +71,13 @@ export class CatalogService {
       .map(group => ({ ...group, tiers: group.tiers.sort((a, b) => a.from - b.from) }))
       .sort((a, b) => a.model.localeCompare(b.model, "es"));
   }
+  async wholesaleTotalArs(model: string, quantity: number) {
+    const quote = await this.wholesale(model, quantity);
+    if (!quote?.selected) return null;
+    const exchangeRateArs = await this.provider.wholesaleExchangeRate();
+    if (!exchangeRateArs) return { ...quote, exchangeRateArs: null, unitPriceArs: null, subtotalArs: null };
+    const unitPriceArs = Math.round(quote.selected.unitPriceUsd * exchangeRateArs);
+    return { ...quote, exchangeRateArs, unitPriceArs, subtotalArs: unitPriceArs * quantity };
+  }
   business(key: string) { return this.provider.businessValue(key); }
 }

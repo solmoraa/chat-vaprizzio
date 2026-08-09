@@ -15,4 +15,4 @@ export const tiers: WholesaleTier[] = [
   { model:"Elfbar Ice King 40K",from:100,unitPriceUsd:11.40 },
   { model:"Elfbar Ice King 40K",from:200,unitPriceUsd:11.20 }
 ];
-export const fixture = () => new FixtureCatalogProvider(structuredClone(products), flavors, tiers);
+export const fixture = () => new FixtureCatalogProvider(structuredClone(products), flavors, tiers, { VALOR_USDT:"1200" });

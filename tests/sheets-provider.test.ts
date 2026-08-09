@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseProductRows, sheetNumber } from "../src/catalog/sheets-provider.js";
+import { GoogleSheetsCatalogProvider, parseProductRows, sheetNumber } from "../src/catalog/sheets-provider.js";
 
 describe("lector de la hoja Productos", () => {
   it("interpreta importes numéricos y formatos habituales", () => {
@@ -21,5 +21,11 @@ describe("lector de la hoja Productos", () => {
   it("incorpora el enlace exacto del producto cuando la hoja lo provee", () => {
     const [product] = parseProductRows([["Geek Bar Pulse X", "Miami Mint", 1, 0, 23000, 0, "", "123", "", "", "SINCRONIZADO", "https://www.vaprizzio.com/productos/geek-bar-pulse-x1/"]], 11);
     expect(product?.productUrl).toBe("https://www.vaprizzio.com/productos/geek-bar-pulse-x1/");
+  });
+
+  it("lee el valor USDT usado para convertir mayorista a pesos", async () => {
+    const provider = new GoogleSheetsCatalogProvider("sheet", "credentials");
+    (provider as unknown as { rows:(range:string)=>Promise<unknown[][]> }).rows = async () => [["Valor USDT"], ["$1.275,50"]];
+    await expect(provider.wholesaleExchangeRate()).resolves.toBe(1275.5);
   });
 });
