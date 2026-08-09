@@ -55,8 +55,12 @@ export class AgentToolService {
       case "reportar_llegada_cambio": {
         const status = String(args.status ?? "próximo a llegar");
         const product = String(args.product ?? "");
-        const result = await this.takeover.request(channel, customerId, `Cliente por llegar para realizar un cambio: ${status}`, undefined, product ? [product] : undefined);
-        const customerMessage = /\bafuera\b/i.test(status) ? "Ya salgo!" : "Dale, te esperamos";
+        const isOutside = /\bafuera\b/i.test(status);
+        const reason = isOutside
+          ? `🚨🚨 CLIENTE AFUERA DEL LOCAL PARA REALIZAR UN CAMBIO 🚨🚨 Estado: ${status}`
+          : `Cliente por llegar para realizar un cambio: ${status}`;
+        const result = await this.takeover.request(channel, customerId, reason, undefined, product ? [product] : undefined);
+        const customerMessage = isOutside ? "Ya salgo!" : "Dale, te esperamos";
         return { action: "AVISADO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "coordinar_visita_local": {

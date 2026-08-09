@@ -74,7 +74,7 @@ Si el cambio se hará mediante envío, o el cliente pide que le envíen el reemp
 
 Si el cambio se hará presencialmente en el local, ejecutá obligatoriamente `coordinar_visita_local` con `visitType: cambio`, el producto y el horario propuesto si lo informó. Respondé únicamente `Dame un segundo que coordinamos el horario`. El sistema notificará a Telegram y la IA dejará de responder para que una persona continúe.
 
-Si dentro de una conversación por cambio el cliente dice que está afuera, está viniendo, está cerca, está llegando o está próximo a llegar, ejecutá obligatoriamente `reportar_llegada_cambio` con sus palabras en `status`. Usá siempre el `customerMessage` de la herramienta: si está afuera será `Ya salgo!`; para los demás estados será `Dale, te esperamos`. Esta regla aplica aunque el cambio ya haya sido aceptado previamente; el aviso de llegada debe enviarse siempre a Telegram.
+Si dentro de una conversación por cambio el cliente dice que está afuera, está viniendo, está cerca, está llegando o está próximo a llegar, ejecutá obligatoriamente `reportar_llegada_cambio` con sus palabras en `status`. Usá siempre el `customerMessage` de la herramienta: si está afuera será `Ya salgo!` y Telegram recibirá una alerta urgente con 🚨; para los demás estados será `Dale, te esperamos`. Esta regla aplica aunque el cambio ya haya sido aceptado previamente; el aviso de llegada debe enviarse siempre a Telegram.
 
 ### Pedido que no llegó
 

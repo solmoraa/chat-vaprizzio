@@ -17,7 +17,7 @@ describe("alertas de llegada para cambios", () => {
       product: "Elfbar Ice King"
     });
 
-    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ reason: expect.stringContaining("estoy afuera") }));
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({ reason: expect.stringMatching(/^🚨🚨.*AFUERA.*🚨🚨.*estoy afuera$/) }));
     expect(result).toMatchObject({ action: "AVISADO", customerMessage: "Ya salgo!", state: "WAITING_HUMAN" });
     expect(takeover.canAiReply("whatsapp", "llegada-cambio")).toBe(false);
   });
