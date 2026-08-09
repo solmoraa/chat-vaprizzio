@@ -18,7 +18,7 @@ describe("alertas de llegada para cambios", () => {
     });
 
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ reason: expect.stringContaining("estoy afuera") }));
-    expect(result).toMatchObject({ action: "AVISADO", customerMessage: "Dale, te esperamos", state: "WAITING_HUMAN" });
+    expect(result).toMatchObject({ action: "AVISADO", customerMessage: "Ya salgo!", state: "WAITING_HUMAN" });
     expect(takeover.canAiReply("whatsapp", "llegada-cambio")).toBe(false);
   });
 });

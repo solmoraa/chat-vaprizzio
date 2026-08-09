@@ -56,7 +56,8 @@ export class AgentToolService {
         const status = String(args.status ?? "próximo a llegar");
         const product = String(args.product ?? "");
         const result = await this.takeover.request(channel, customerId, `Cliente por llegar para realizar un cambio: ${status}`, undefined, product ? [product] : undefined);
-        return { action: "AVISADO", customerMessage: "Dale, te esperamos", state: result.state, pausedUntil: result.pausedUntil };
+        const customerMessage = /\bafuera\b/i.test(status) ? "Ya salgo!" : "Dale, te esperamos";
+        return { action: "AVISADO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
