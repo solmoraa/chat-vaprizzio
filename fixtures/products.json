@@ -1,0 +1,7 @@
+[
+  {"sku":"TEST-ELF-001","brand":"Elfbar","model":"Ice King 40K","flavor":"Miami Mint","stock":7,"price":26000,"profile":["fresco","mentolado"],"description":"Menta muy fresca","active":true},
+  {"sku":"TEST-IGN-001","brand":"Ignite","model":"V250","flavor":"Miami Mint","stock":4,"price":25000,"profile":["fresco","mentolado"],"description":"Menta fresca","active":true},
+  {"sku":"TEST-ELF-002","brand":"Elfbar","model":"Ice King 40K","flavor":"Tiger Blood","stock":5,"price":26000,"profile":["dulce","frutal"],"description":"Frutal dulce","active":true},
+  {"sku":"TEST-ELF-003","brand":"Elfbar","model":"Ice King 40K","flavor":"Cherry Fuse","stock":0,"price":26000,"profile":["dulce"],"description":"Cereza","active":true},
+  {"sku":"TEST-OFF-001","brand":"Test","model":"Inactive","flavor":"Miami Mint","stock":10,"price":1,"profile":[],"description":"No ofrecer","active":false}
+]

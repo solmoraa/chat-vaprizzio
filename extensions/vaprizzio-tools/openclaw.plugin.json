@@ -1,0 +1,6 @@
+{
+  "id":"vaprizzio-tools","name":"Vaprizzio Commercial Tools","description":"Herramientas comerciales verificadas para el agente de ventas",
+  "contracts":{"tools":["buscar_sabor","buscar_modelo","buscar_producto","buscar_por_perfil","consultar_stock","consultar_precio","consultar_negocio","consultar_mayorista","carrito_agregar","carrito_establecer","carrito_consultar","resumir_pedido","solicitar_intervencion_humana"]},
+  "activation":{"onStartup":true},
+  "configSchema":{"type":"object","additionalProperties":false,"properties":{"baseUrl":{"type":"string","default":"http://127.0.0.1:3000"}}}
+}

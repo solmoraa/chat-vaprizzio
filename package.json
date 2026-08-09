@@ -1,0 +1,33 @@
+{
+  "name": "chat-vaprizzio",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Agente de ventas Vaprizzio: OpenClaw, WhatsApp, Instagram y Google Sheets",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "start": "node dist/src/server.js",
+    "build": "tsc -p tsconfig.json && node scripts/copy-fixtures.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "audit:secrets": "node scripts/check-secrets.mjs",
+    "verify": "npm run typecheck && npm test && npm run audit:secrets"
+  },
+  "dependencies": {
+    "dotenv": "^17.2.1",
+    "express": "^5.1.0",
+    "googleapis": "^155.0.0",
+    "pino": "^9.7.0",
+    "pino-http": "^10.5.0",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.2.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

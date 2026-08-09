@@ -1,0 +1,22 @@
+{
+  agents: {
+    defaults: { workspace: "/absolute/path/to/chat-vaprizzio" },
+    entries: [{ id: "vaprizzio-sales", name: "Vaprizzio Ventas TEST", skills: ["ventas-vaprizzio"] }]
+  },
+  channels: {
+    whatsapp: {
+      enabled: true,
+      // Reemplazar solo con números de prueba. Nunca usar el real durante TEST.
+      allowFrom: ["+TEST_CUSTOMER_NUMBER"]
+    }
+  },
+  hooks: {
+    enabled: true,
+    token: "${OPENCLAW_HOOK_TOKEN}",
+    path: "/hooks",
+    allowRequestSessionKey: false,
+    allowedSessionKeyPrefixes: ["whatsapp:", "instagram:"]
+  },
+  plugins: { entries: { "vaprizzio-tools": { enabled: true, config: { baseUrl: "http://127.0.0.1:3000" } } } },
+  tools: { allow: ["vaprizzio-tools"] }
+}

@@ -1,0 +1,4 @@
+[
+  {"from":10,"to":19,"unitPrice":22000,"action":"AUTOMATICO"},
+  {"from":20,"to":null,"unitPrice":null,"action":"CONSULTAR"}
+]
