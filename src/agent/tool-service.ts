@@ -52,6 +52,12 @@ export class AgentToolService {
         const result = await this.takeover.request(channel, customerId, "Coordinar cambio de producto con envío", undefined, details);
         return { action: "CONSULTAR", customerMessage: "Dame un segundo que coordino el cambio y el envío", state: result.state, pausedUntil: result.pausedUntil };
       }
+      case "reportar_llegada_cambio": {
+        const status = String(args.status ?? "próximo a llegar");
+        const product = String(args.product ?? "");
+        const result = await this.takeover.request(channel, customerId, `Cliente por llegar para realizar un cambio: ${status}`, undefined, product ? [product] : undefined);
+        return { action: "AVISADO", customerMessage: "Dale, te esperamos", state: result.state, pausedUntil: result.pausedUntil };
+      }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
         const quantity = args.quantity == null ? undefined : Number(args.quantity);
