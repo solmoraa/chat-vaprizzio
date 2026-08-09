@@ -9,7 +9,7 @@ export class AgentToolService {
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService()) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
-    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "solicitar_intervencion_humana"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
@@ -85,6 +85,19 @@ export class AgentToolService {
         const details = [product, preferredTime ? `Horario propuesto: ${preferredTime}` : ""].filter(Boolean);
         const result = await this.takeover.request(channel, customerId, `Coordinar horario para ${label}`, undefined, details.length ? details : undefined);
         return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", state: result.state, pausedUntil: result.pausedUntil };
+      }
+      case "reportar_comprobante_web": {
+        const deliveryMode = String(args.deliveryMode ?? "envio").toLowerCase();
+        const orderReference = String(args.orderReference ?? "");
+        const base = "Gracias por enviarnos el comprobante! Apenas confirmemos el pago, confirmamos el envío y empezamos a preparar tu pedido.";
+        const customerMessage = deliveryMode === "uber_didi"
+          ? `${base} Nos vamos a comunicar para avisarte cuando salga el vehículo. Para cualquier cosa estamos en contacto.`
+          : deliveryMode === "punto_retiro"
+            ? "Gracias por enviarnos el comprobante! Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el punto de retiro. Para cualquier cosa estamos en contacto."
+            : `${base} Para cualquier cosa estamos en contacto.`;
+        const modeLabel = deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
+        const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
+        return { action: "VERIFICAR_PAGO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");

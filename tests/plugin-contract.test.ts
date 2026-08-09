@@ -13,6 +13,7 @@ describe("contrato del plugin OpenClaw", () => {
       ,"coordinar_visita_local"
       ,"evaluar_producto_fallado"
       ,"cerrar_conversacion"
+      ,"reportar_comprobante_web"
     ]));
     for (const tool of manifest.contracts.tools) expect(manifest.toolMetadata).toHaveProperty(tool);
   });
