@@ -20,6 +20,7 @@ export class DeliveryService {
     const zone = (Object.entries(locations) as Array<[DeliveryZone, string[]]>).find(([, names]) => names.some(name => normalize(name) === query))?.[0];
     if (!zone) return { action: "PEDIR_LOCALIDAD", customerMessage: "Pasame tu localidad y código postal así te confirmo el envío" };
     const hour = buenosAiresHour(now);
+    if (hour >= 22) return { action: "PROGRAMAR_MANANA", zone, customerMessage: "A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo y mañana lo despachamos" };
     if (hour >= 13) return { action: "OFRECER_APP", zone, customerMessage: "Para hoy podemos pedir un Didi o Uber Envíos. El valor se consulta en el momento y se paga por transferencia" };
     return { action: "AUTOMATICO", method: "FLEX", zone, price: zonePrices[zone], deliveryWindow: "16 a 20 hs", cutoff: "13:00", payment: "TRANSFERENCIA_ANTICIPADA" };
   }

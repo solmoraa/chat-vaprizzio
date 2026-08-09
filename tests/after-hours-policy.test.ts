@@ -5,13 +5,20 @@ describe("atención después del cierre del local", () => {
   const agents = readFileSync(new URL("../openclaw/workspace/AGENTS.md", import.meta.url), "utf8");
   const skill = readFileSync(new URL("../skills/ventas/SKILL.md", import.meta.url), "utf8");
 
-  it("mantiene el chat activo y deriva pedidos inmediatos después de las 19", () => {
+  it("mantiene el chat activo y deriva pedidos inmediatos entre las 19 y las 22", () => {
     for (const instructions of [agents, skill]) {
-      expect(instructions).toContain("Después de las 19 hs");
+      expect(instructions).toContain("Desde las 19 y antes de las 22 hs");
       expect(instructions).toContain("reportar_pedido_inmediato_app");
       expect(instructions).toMatch(/chat (continúa|sigue) atendiendo/i);
       expect(instructions).toContain("Buscabas algún vape?");
       expect(instructions).toContain("Hola! Cómo estás? Buscabas algún vape?");
+    }
+  });
+
+  it("después de las 22 vende pero despacha al día siguiente", () => {
+    for (const instructions of [agents, skill]) {
+      expect(instructions).toContain("Desde las 22 hs");
+      expect(instructions).toContain("mañana lo despachamos");
     }
   });
 

@@ -37,4 +37,21 @@ describe("pedido inmediato por Uber o Didi", () => {
     expect(notify).not.toHaveBeenCalled();
     expect(result).toMatchObject({ action: "PEDIR_DATOS", requires: ["product", "address"] });
   });
+
+  it("desde las 22 no ofrece envío inmediato ni notifica", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-10T01:05:00Z"));
+    const repo = new ConversationRepository(":memory:");
+    const notify = vi.fn();
+    const takeover = new TakeoverService(repo, { notify });
+    const tools = new AgentToolService({} as never, {} as never, takeover, {} as never);
+
+    const result = await tools.execute("reportar_pedido_inmediato_app", {
+      channel:"whatsapp", customerId:"pedido-22", product:"Pulse X", address:"Dirección 123"
+    });
+
+    expect(result).toMatchObject({ action:"PROGRAMAR_MANANA", customerMessage:expect.stringContaining("mañana") });
+    expect(notify).not.toHaveBeenCalled();
+    vi.useRealTimers();
+  });
 });

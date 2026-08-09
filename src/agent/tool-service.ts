@@ -30,6 +30,7 @@ export class AgentToolService {
         throw new Error("DELIVERY_METHOD_INVALID");
       }
       case "solicitar_envio_app": {
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo y mañana lo despachamos" };
         const result = await this.takeover.request(channel, customerId, "Cotizar Didi o Uber Envíos", undefined, [String(args.address ?? "")]);
         return { action: "CONSULTAR", customerMessage: "Dame un segundo que consulto el valor del envío", state: result.state };
       }
@@ -133,6 +134,7 @@ export class AgentToolService {
         return { action: "ATENCION_HUMANA", customerMessage: "Dale, dame un segundo que verifico que haya alguien para recibirte", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_pedido_inmediato_app": {
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo y mañana lo despachamos" };
         const product = String(args.product ?? "").trim();
         const address = String(args.address ?? "").trim();
         if (!product || !address) return { action:"PEDIR_DATOS", requires:[...(!product ? ["product"] : []), ...(!address ? ["address"] : [])], customerMessage:"Decime qué vape querés y pasame la dirección" };
