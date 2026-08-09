@@ -11,7 +11,7 @@ export class AgentToolService {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
-    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "solicitar_intervencion_humana"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
@@ -107,6 +107,11 @@ export class AgentToolService {
         const details = product ? [product] : undefined;
         const result = await this.takeover.request(channel, customerId, `Cliente solicita ${mediaType} de un producto`, undefined, details);
         return { action: "ENVIAR_MEDIA", customerMessage: "Dale, dame un segundo ya te mando", mediaType, state: result.state, pausedUntil: result.pausedUntil };
+      }
+      case "reportar_llegada_sin_producto": {
+        const arrivalStatus = String(args.arrivalStatus ?? "ya está viniendo");
+        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE VINIENDO AL LOCAL SIN VAPE DECIDIDO 🚨 Estado: ${arrivalStatus}`);
+        return { action: "ATENCION_HUMANA", customerMessage: "Dale, ya te atiendo!", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
