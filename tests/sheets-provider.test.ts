@@ -17,4 +17,9 @@ describe("lector de la hoja Productos", () => {
     const [product] = parseProductRows([["Lost Mary Mixer 30k", "Watermelon Ice", 2, 0, 25000, 0, "", "123", "", "SKU-1", "SINCRONIZADO"]]);
     expect(product).toMatchObject({ sku: "SKU-1", brand: "Lost Mary", model: "Mixer 30k" });
   });
+
+  it("incorpora el enlace exacto del producto cuando la hoja lo provee", () => {
+    const [product] = parseProductRows([["Geek Bar Pulse X", "Miami Mint", 1, 0, 23000, 0, "", "123", "", "", "SINCRONIZADO", "https://www.vaprizzio.com/productos/geek-bar-pulse-x1/"]], 11);
+    expect(product?.productUrl).toBe("https://www.vaprizzio.com/productos/geek-bar-pulse-x1/");
+  });
 });

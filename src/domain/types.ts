@@ -11,6 +11,7 @@ export interface Product {
   profile: string[];
   description: string;
   active: boolean;
+  productUrl?: string;
 }
 
 export interface Flavor {

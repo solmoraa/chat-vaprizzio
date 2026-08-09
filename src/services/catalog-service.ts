@@ -31,10 +31,10 @@ export class CatalogService {
   }
   async priceList() {
     const products = await this.live();
-    const groups = new Map<string, { brand: string; model: string; variants: Array<{ flavor: string; price: number }> }>();
+    const groups = new Map<string, { brand: string; model: string; productUrl?: string; variants: Array<{ flavor: string; price: number }> }>();
     for (const product of products) {
       const key = `${normalize(product.brand)}|${normalize(product.model)}`;
-      const group = groups.get(key) ?? { brand: product.brand, model: product.model, variants: [] };
+      const group = groups.get(key) ?? { brand: product.brand, model: product.model, ...(product.productUrl ? { productUrl: product.productUrl } : {}), variants: [] };
       group.variants.push({ flavor: product.flavor, price: product.price });
       groups.set(key, group);
     }

@@ -20,7 +20,7 @@ const splitProductName = (value: unknown): { brand: string; model: string } => {
   return { brand, model };
 };
 
-export const parseProductRows = (rows: unknown[][]): Product[] => rows.filter(row => row[0]).map(row => {
+export const parseProductRows = (rows: unknown[][], urlColumn = -1): Product[] => rows.filter(row => row[0]).map(row => {
   const { brand, model } = splitProductName(row[0]);
   const variantId = String(row[7] ?? "").trim();
   const explicitSku = String(row[9] ?? "").trim();
@@ -34,7 +34,8 @@ export const parseProductRows = (rows: unknown[][]): Product[] => rows.filter(ro
     price: sheetNumber(row[4]),
     profile: [],
     description: "",
-    active: !syncState.includes("INACTIVO") && !syncState.includes("DESACTIVADO")
+    active: !syncState.includes("INACTIVO") && !syncState.includes("DESACTIVADO"),
+    ...(urlColumn >= 0 && /^https:\/\/www\.vaprizzio\.com\/productos\//i.test(String(row[urlColumn] ?? "").trim()) ? { productUrl: String(row[urlColumn]).trim() } : {})
   };
 });
 
@@ -55,8 +56,9 @@ export class GoogleSheetsCatalogProvider implements CatalogProvider {
     return res.data.values ?? [];
   }
   async products(): Promise<Product[]> {
-    const [, ...rows] = await this.rows("Productos!A:K");
-    return parseProductRows(rows);
+    const [headers = [], ...rows] = await this.rows("Productos!A:S");
+    const urlColumn = headers.findIndex(header => /^(url|enlace|link)( producto)?$/i.test(String(header ?? "").trim()));
+    return parseProductRows(rows, urlColumn);
   }
   async flavors(): Promise<Flavor[]> {
     const [, ...rows] = await this.rows("SABORES!A:F");
