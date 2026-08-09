@@ -9,7 +9,7 @@ export class AgentToolService {
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService()) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
-    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "solicitar_intervencion_humana"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
@@ -98,6 +98,13 @@ export class AgentToolService {
         const modeLabel = deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
         const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
         return { action: "VERIFICAR_PAGO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
+      }
+      case "reportar_solicitud_media": {
+        const mediaType = String(args.mediaType ?? "foto").toLowerCase();
+        const product = String(args.product ?? "");
+        const details = product ? [product] : undefined;
+        const result = await this.takeover.request(channel, customerId, `Cliente solicita ${mediaType} de un producto`, undefined, details);
+        return { action: "ENVIAR_MEDIA", customerMessage: "Dale, dame un segundo ya te mando", mediaType, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
