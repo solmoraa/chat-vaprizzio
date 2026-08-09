@@ -59,6 +59,15 @@ export class AgentToolService {
         const customerMessage = /\bafuera\b/i.test(status) ? "Ya salgo!" : "Dale, te esperamos";
         return { action: "AVISADO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }
+      case "coordinar_visita_local": {
+        const visitType = String(args.visitType ?? "retiro").toLowerCase();
+        const product = String(args.product ?? "");
+        const preferredTime = String(args.preferredTime ?? "");
+        const label = visitType === "cambio" ? "cambio de producto en el local" : "retiro en el local";
+        const details = [product, preferredTime ? `Horario propuesto: ${preferredTime}` : ""].filter(Boolean);
+        const result = await this.takeover.request(channel, customerId, `Coordinar horario para ${label}`, undefined, details.length ? details : undefined);
+        return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", state: result.state, pausedUntil: result.pausedUntil };
+      }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
         const quantity = args.quantity == null ? undefined : Number(args.quantity);

@@ -1,10 +1,10 @@
 {
   "id":"vaprizzio-tools","name":"Vaprizzio Commercial Tools","description":"Herramientas comerciales verificadas para el agente de ventas",
-  "contracts":{"tools":["buscar_sabor","buscar_modelo","buscar_producto","buscar_por_perfil","listar_catalogo","consultar_stock","consultar_precio","consultar_entrega","solicitar_envio_app","reportar_demora_envio","reportar_cambio_envio","reportar_llegada_cambio","consultar_negocio","consultar_mayorista","listar_mayorista","carrito_agregar","carrito_establecer","carrito_consultar","resumir_pedido","solicitar_intervencion_humana"]},
+  "contracts":{"tools":["buscar_sabor","buscar_modelo","buscar_producto","buscar_por_perfil","listar_catalogo","consultar_stock","consultar_precio","consultar_entrega","solicitar_envio_app","reportar_demora_envio","reportar_cambio_envio","reportar_llegada_cambio","coordinar_visita_local","consultar_negocio","consultar_mayorista","listar_mayorista","carrito_agregar","carrito_establecer","carrito_consultar","resumir_pedido","solicitar_intervencion_humana"]},
   "toolMetadata": {
     "buscar_sabor":{"optional":true},"buscar_modelo":{"optional":true},"buscar_producto":{"optional":true},"buscar_por_perfil":{"optional":true},
     "listar_catalogo":{"optional":true},"consultar_stock":{"optional":true},"consultar_precio":{"optional":true},
-    "consultar_entrega":{"optional":true},"solicitar_envio_app":{"optional":true},"reportar_demora_envio":{"optional":true},"reportar_cambio_envio":{"optional":true},"reportar_llegada_cambio":{"optional":true},"consultar_negocio":{"optional":true},"consultar_mayorista":{"optional":true},"listar_mayorista":{"optional":true},
+    "consultar_entrega":{"optional":true},"solicitar_envio_app":{"optional":true},"reportar_demora_envio":{"optional":true},"reportar_cambio_envio":{"optional":true},"reportar_llegada_cambio":{"optional":true},"coordinar_visita_local":{"optional":true},"consultar_negocio":{"optional":true},"consultar_mayorista":{"optional":true},"listar_mayorista":{"optional":true},
     "carrito_agregar":{"optional":true},"carrito_establecer":{"optional":true},"carrito_consultar":{"optional":true},"resumir_pedido":{"optional":true},
     "solicitar_intervencion_humana":{"optional":true}
   },
