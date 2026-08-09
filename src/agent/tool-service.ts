@@ -3,9 +3,10 @@ import type { CartService } from "../services/cart-service.js";
 import type { SalesService } from "../services/sales-service.js";
 import type { TakeoverService } from "../services/takeover-service.js";
 import type { Channel } from "../domain/types.js";
+import { DeliveryService } from "../services/delivery-service.js";
 
 export class AgentToolService {
-  constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService) {}
+  constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService()) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state") return { blocked: true, reason: "AI_NOT_ACTIVE" };
@@ -17,6 +18,17 @@ export class AgentToolService {
       case "consultar_stock": return this.catalog.stock(String(args.sku));
       case "consultar_precio": return { price: await this.catalog.price(String(args.sku)) };
       case "consultar_negocio": return { value: await this.catalog.business(String(args.key)) };
+      case "consultar_entrega": {
+        const method = String(args.method ?? "").toLowerCase();
+        if (method === "retiro") return this.delivery.pickup();
+        if (method === "flex") return this.delivery.flex(String(args.locality ?? ""));
+        if (method === "nacional") return { action: "COTIZAR_TIENDANUBE", requires: ["address", "postalCode"], carriers: ["Andreani", "Correo Argentino", "Vía Cargo"] };
+        throw new Error("DELIVERY_METHOD_INVALID");
+      }
+      case "solicitar_envio_app": {
+        const result = await this.takeover.request(channel, customerId, "Cotizar Didi o Uber Envíos", undefined, [String(args.address ?? "")]);
+        return { action: "CONSULTAR", customerMessage: "Dame un segundo que consulto el valor del envío", state: result.state };
+      }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
         const quantity = args.quantity == null ? undefined : Number(args.quantity);
