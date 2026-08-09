@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "node dist/src/server.js",
-    "build": "tsc -p tsconfig.json && node scripts/copy-fixtures.mjs",
+    "build": "tsc -p tsconfig.json && node scripts/copy-fixtures.mjs && node scripts/build-openclaw-plugin.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
