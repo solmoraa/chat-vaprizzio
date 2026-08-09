@@ -34,6 +34,11 @@ export class ConversationRepository {
     this.save(c); return c;
   }
   close(channel: Channel, customerId: string) { const c = this.fresh(channel, customerId); this.save(c); return c; }
+  appendMessage(channel: Channel, customerId: string, message: string) {
+    const c = this.getOrCreate(channel, customerId);
+    if (message && c.lastMessages.at(-1) !== message) c.lastMessages.push(message);
+    c.lastActivity = new Date().toISOString(); this.save(c); return c;
+  }
   save(c: Conversation) {
     this.db.prepare(`INSERT INTO conversations (id,channel,customer_id,state,current_product,current_flavor,cart,negotiated_quantity,negotiated_price,customer_city,last_messages,last_activity,paused_until)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

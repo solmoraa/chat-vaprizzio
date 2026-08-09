@@ -13,5 +13,7 @@ describe("TelegramNotifier", () => {
     expect(request).toHaveBeenCalledTimes(2);
     const chatIds = request.mock.calls.map(([, options]) => JSON.parse(String(options?.body)).chat_id);
     expect(chatIds).toEqual(["6579754152", "1566518876"]);
+    const bodies = request.mock.calls.map(([, options]) => JSON.parse(String(options?.body)).text as string);
+    expect(bodies.every(body => body.includes("Mensaje del cliente: no llegó"))).toBe(true);
   });
 });

@@ -9,6 +9,8 @@ export class AgentToolService {
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService()) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
+    const triggerMessage = String(args.triggerMessage ?? "").trim();
+    if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
     const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "solicitar_intervencion_humana"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {

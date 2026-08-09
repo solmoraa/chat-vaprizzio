@@ -12,7 +12,8 @@ export class TelegramNotifier implements HumanNotifier {
 
   async notify(v: HumanNotification) {
     if (!this.token || this.chatIds.length === 0) throw new Error("TELEGRAM_NOT_CONFIGURED");
-    const text = [`INTERVENCION HUMANA`, `Canal: ${v.channel}`, `Cliente: ${v.customerId}`, v.quantity ? `Cantidad: ${v.quantity}` : "", v.products?.length ? `Productos: ${v.products.join(", ")}` : "", `Motivo: ${v.reason}`, `Mensajes: ${v.messages.join(" | ")}`].filter(Boolean).join("\n");
+    const latestMessage = v.messages.at(-1)?.trim() || "No disponible";
+    const text = [`INTERVENCION HUMANA`, `Canal: ${v.channel}`, `Cliente: ${v.customerId}`, v.quantity ? `Cantidad: ${v.quantity}` : "", v.products?.length ? `Productos: ${v.products.join(", ")}` : "", `Motivo: ${v.reason}`, `Mensaje del cliente: ${latestMessage}`].filter(Boolean).join("\n");
     const results = await Promise.allSettled(this.chatIds.map(async (chatId) => {
       const res = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text }) });
       if (!res.ok) throw new Error(`TELEGRAM_ERROR:${res.status}:chat=${chatId}`);
