@@ -3,7 +3,7 @@ import type { CartService } from "../services/cart-service.js";
 import type { SalesService } from "../services/sales-service.js";
 import type { TakeoverService } from "../services/takeover-service.js";
 import type { Channel } from "../domain/types.js";
-import { DeliveryService } from "../services/delivery-service.js";
+import { DeliveryService, buenosAiresHour } from "../services/delivery-service.js";
 
 export class AgentToolService {
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService()) {}
@@ -29,6 +29,16 @@ export class AgentToolService {
       case "solicitar_envio_app": {
         const result = await this.takeover.request(channel, customerId, "Cotizar Didi o Uber Envíos", undefined, [String(args.address ?? "")]);
         return { action: "CONSULTAR", customerMessage: "Dame un segundo que consulto el valor del envío", state: result.state };
+      }
+      case "reportar_demora_envio": {
+        const carrier = String(args.carrier ?? "").toLowerCase();
+        if (carrier === "correo_argentino") return { action: "REVISAR_SEGUIMIENTO", customerMessage: "Revisá el código de seguimiento que te llegó por mail para ver el estado del envío" };
+        if (carrier !== "flex") return { action: "PREGUNTAR_MEDIO", customerMessage: "Por qué medio te lo enviaron?" };
+        const promisedEndHour = Number(args.promisedEndHour);
+        if (!Number.isInteger(promisedEndHour) || promisedEndHour < 0 || promisedEndHour > 23) return { action: "PREGUNTAR_HORARIO", customerMessage: "En qué horario te tenía que llegar?" };
+        if (buenosAiresHour() < promisedEndHour) return { action: "DENTRO_DE_HORARIO", customerMessage: `Todavía está dentro del horario informado, hasta las ${promisedEndHour} hs` };
+        const result = await this.takeover.request(channel, customerId, "Pedido Flex demorado", undefined, [String(args.orderReference ?? "")]);
+        return { action: "CONSULTAR", customerMessage: "Aguardame un momento que lo consulto", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");

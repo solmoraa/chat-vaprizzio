@@ -4,9 +4,17 @@ import type { HumanNotifier } from "../notifications/notifier.js";
 
 export class TakeoverService {
   constructor(private readonly repo: ConversationRepository, private readonly notifier: HumanNotifier) {}
-  canAiReply(channel: Channel, customerId: string) { return this.repo.getOrCreate(channel, customerId).state === "AI_ACTIVE"; }
+  canAiReply(channel: Channel, customerId: string, now = new Date()) {
+    const conversation = this.repo.getOrCreate(channel, customerId);
+    if (conversation.state === "AI_ACTIVE") return true;
+    if (conversation.pausedUntil && now.getTime() >= new Date(conversation.pausedUntil).getTime()) {
+      this.repo.setState(channel, customerId, "AI_ACTIVE", null);
+      return true;
+    }
+    return false;
+  }
   async request(channel: Channel, customerId: string, reason: string, quantity?: number, products?: string[]) {
-    const c = this.repo.setState(channel, customerId, "WAITING_HUMAN");
+    const c = this.repo.setState(channel, customerId, "WAITING_HUMAN", new Date(Date.now() + 60 * 60 * 1000).toISOString());
     await this.notifier.notify({ channel, customerId, messages: c.lastMessages.slice(-5), reason, ...(quantity == null ? {} : { quantity }), ...(products ? { products } : {}) });
     return c;
   }
@@ -16,5 +24,5 @@ export class TakeoverService {
     if (match?.[1] && match[2]) this.repo.setNegotiatedPrice(channel, customerId, { quantity: Number(match[1]), unitPrice: Number(match[2].replace(/\./g, "")), conditions: text, timestamp: new Date().toISOString() });
     return c;
   }
-  resume(channel: Channel, customerId: string) { return this.repo.setState(channel, customerId, "AI_ACTIVE"); }
+  resume(channel: Channel, customerId: string) { return this.repo.setState(channel, customerId, "AI_ACTIVE", null); }
 }

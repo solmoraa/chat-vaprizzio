@@ -49,6 +49,7 @@ export interface Conversation {
   customerCity: string | null;
   lastMessages: string[];
   lastActivity: string;
+  pausedUntil: string | null;
 }
 
 export interface SaleLine {

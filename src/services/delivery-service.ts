@@ -10,6 +10,8 @@ const locations: Record<DeliveryZone, string[]> = {
   GBA3: ["zarate", "campana", "escobar", "pilar", "lujan", "general rodriguez", "marcos paz", "canuelas", "san vicente", "la plata", "ensenada", "berisso"]
 };
 
+export const buenosAiresHour = (now = new Date()) => Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", hour12: false }).format(now));
+
 export class DeliveryService {
   pickup() { return { method: "RETIRO", price: 0, address: "Av. Larrazábal 3437, Villa Lugano, CABA" }; }
 
@@ -17,7 +19,7 @@ export class DeliveryService {
     const query = normalize(locality);
     const zone = (Object.entries(locations) as Array<[DeliveryZone, string[]]>).find(([, names]) => names.some(name => normalize(name) === query))?.[0];
     if (!zone) return { action: "PEDIR_LOCALIDAD", customerMessage: "Pasame tu localidad y código postal así te confirmo el envío" };
-    const hour = Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", hour12: false }).format(now));
+    const hour = buenosAiresHour(now);
     if (hour >= 13) return { action: "OFRECER_APP", zone, customerMessage: "Para hoy podemos pedir un Didi o Uber Envíos. El valor se consulta en el momento y se paga por transferencia" };
     return { action: "AUTOMATICO", method: "FLEX", zone, price: zonePrices[zone], deliveryWindow: "16 a 20 hs", cutoff: "13:00", payment: "TRANSFERENCIA_ANTICIPADA" };
   }

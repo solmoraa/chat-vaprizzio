@@ -48,7 +48,7 @@ export function createApp(d: AppDependencies) {
     const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(message); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
     const accept = d.takeover.canAiReply(channel, customerId);
     if (accept) d.debounce.push(`${channel}:${customerId}`, message, messages => d.openclaw.dispatch(channel, customerId, messages));
-    res.json({ accept, queued: accept, state: c.state });
+    res.json({ accept, queued: accept, state: accept ? "AI_ACTIVE" : c.state });
   });
 
   app.post("/webhooks/internal", express.json({ limit: "32kb" }), (req, res) => {
