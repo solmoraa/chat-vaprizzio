@@ -33,7 +33,11 @@ export class AgentToolService {
       case "reportar_demora_envio": {
         const carrier = String(args.carrier ?? "").toLowerCase();
         if (carrier === "correo_argentino") return { action: "REVISAR_SEGUIMIENTO", customerMessage: "Revisá el código de seguimiento que te llegó por mail para ver el estado del envío" };
-        if (carrier !== "flex") return { action: "PREGUNTAR_MEDIO", customerMessage: "Por qué medio te lo enviaron?" };
+        if (carrier !== "flex") {
+          const label = carrier === "uber_didi" ? "Uber o Didi" : "otro medio";
+          const result = await this.takeover.request(channel, customerId, `Pedido enviado por ${label} no entregado`, undefined, [String(args.orderReference ?? "")]);
+          return { action: "CONSULTAR", customerMessage: "Aguardame un momento que lo consulto", state: result.state, pausedUntil: result.pausedUntil };
+        }
         const promisedEndHour = Number(args.promisedEndHour);
         if (!Number.isInteger(promisedEndHour) || promisedEndHour < 0 || promisedEndHour > 23) return { action: "PREGUNTAR_HORARIO", customerMessage: "En qué horario te tenía que llegar?" };
         if (buenosAiresHour() < promisedEndHour) return { action: "DENTRO_DE_HORARIO", customerMessage: `Todavía está dentro del horario informado, hasta las ${promisedEndHour} hs` };
