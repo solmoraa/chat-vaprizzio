@@ -1,14 +1,16 @@
-import { Type } from "typebox";
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 
-const identity = { channel: Type.Union([Type.Literal("whatsapp"), Type.Literal("instagram")]), customerId: Type.String({ minLength: 1 }) };
+const string = (extra: Record<string, unknown> = {}) => ({ type:"string", ...extra });
+const integer = (extra: Record<string, unknown> = {}) => ({ type:"integer", ...extra });
+const object = (properties: Record<string, unknown>) => ({ type:"object", additionalProperties:false, properties, required:Object.keys(properties) });
+const identity = { channel: string({ enum:["whatsapp","instagram"] }), customerId: string({ minLength:1 }) };
 const schemas: Record<string, object> = {
-  buscar_sabor: Type.Object({ ...identity, query: Type.String() }), buscar_modelo: Type.Object({ ...identity, query: Type.String() }),
-  buscar_producto: Type.Object({ ...identity, model: Type.String(), flavor: Type.String() }), buscar_por_perfil: Type.Object({ ...identity, profile: Type.String() }),
-  consultar_stock: Type.Object({ ...identity, sku: Type.String() }), consultar_precio: Type.Object({ ...identity, sku: Type.String() }),
-  consultar_negocio: Type.Object({ ...identity, key: Type.String() }), consultar_mayorista: Type.Object({ ...identity, quantity: Type.Integer({ minimum: 1 }) }),
-  carrito_agregar: Type.Object({ ...identity, sku: Type.String(), quantity: Type.Integer({ minimum: 1 }) }), carrito_establecer: Type.Object({ ...identity, sku: Type.String(), quantity: Type.Integer({ minimum: 0 }) }),
-  carrito_consultar: Type.Object(identity), resumir_pedido: Type.Object(identity), solicitar_intervencion_humana: Type.Object({ ...identity, reason: Type.String() })
+  buscar_sabor:object({...identity,query:string()}), buscar_modelo:object({...identity,query:string()}),
+  buscar_producto:object({...identity,model:string(),flavor:string()}), buscar_por_perfil:object({...identity,profile:string()}),
+  consultar_stock:object({...identity,sku:string()}), consultar_precio:object({...identity,sku:string()}),
+  consultar_negocio:object({...identity,key:string()}), consultar_mayorista:object({...identity,quantity:integer({minimum:1})}),
+  carrito_agregar:object({...identity,sku:string(),quantity:integer({minimum:1})}), carrito_establecer:object({...identity,sku:string(),quantity:integer({minimum:0})}),
+  carrito_consultar:object(identity), resumir_pedido:object(identity), solicitar_intervencion_humana:object({...identity,reason:string()})
 };
 const descriptions: Record<string, string> = {
   buscar_sabor:"Busca el sabor en todas las marcas y solo devuelve productos disponibles.", buscar_modelo:"Lista sabores disponibles de un modelo.", buscar_producto:"Busca un producto específico por modelo y sabor.", buscar_por_perfil:"Recomienda pocos productos disponibles por perfil.", consultar_stock:"Verifica disponibilidad; no reveles quantity salvo pregunta explícita.", consultar_precio:"Obtiene el precio actual por SKU.", consultar_negocio:"Obtiene una regla comercial desde NEGOCIO.", consultar_mayorista:"Obtiene el tramo mayorista o escala al humano.", carrito_agregar:"Suma una cantidad pedida al carrito.", carrito_establecer:"Corrige la cantidad exacta en carrito.", carrito_consultar:"Lee el carrito persistente.", resumir_pedido:"Cotiza el pedido sin confirmarlo ni descontar stock.", solicitar_intervencion_humana:"Pausa la IA y notifica al vendedor."
