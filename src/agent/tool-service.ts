@@ -23,7 +23,7 @@ export class AgentToolService {
         const quote = await this.catalog.wholesale(model, quantity);
         if (!quote) {
           await this.takeover.request(channel, customerId, "Producto mayorista no encontrado", quantity, [model]);
-          return { action: "HUMANO", replyAllowed: false, reason: "PRODUCTO_NO_ENCONTRADO" };
+          return { action: "CONSULTAR", replyAllowed: true, customerMessage: "Dame un segundo que lo consulto", reason: "PRODUCTO_NO_ENCONTRADO" };
         }
         if (quantity != null && quantity < 10) return { action: "MINORISTA", minimum: 10 };
         return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, ...quote };
