@@ -10,7 +10,7 @@ describe("atención después del cierre del local", () => {
       expect(instructions).toContain("Después de las 19 hs");
       expect(instructions).toContain("reportar_pedido_inmediato_app");
       expect(instructions).toMatch(/chat (continúa|sigue) atendiendo/i);
-      expect(instructions).toContain("Hola! Sii, estamos. Qué vape buscabas?");
+      expect(instructions).toContain("Buscabas algún vape?");
     }
   });
 
