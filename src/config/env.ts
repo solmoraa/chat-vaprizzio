@@ -25,6 +25,7 @@ const schema = z.object({
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   INTERNAL_WEBHOOK_SECRET: z.string().default(""),
   DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(20000),
+  CONVERSATION_IDLE_MINUTES: z.coerce.number().int().positive().default(120),
   SALE_CONFIRMATION_MODE: z.enum(["disabled", "explicit_internal_command"]).default("disabled")
 });
 

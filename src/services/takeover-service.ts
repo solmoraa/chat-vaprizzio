@@ -28,4 +28,5 @@ export class TakeoverService {
     return c;
   }
   resume(channel: Channel, customerId: string) { return this.repo.setState(channel, customerId, "AI_ACTIVE", null); }
+  close(channel: Channel, customerId: string) { return this.repo.close(channel, customerId); }
 }

@@ -20,7 +20,7 @@ const config = loadConfig();
 const provider = config.CATALOG_PROVIDER === "sheets"
   ? new GoogleSheetsCatalogProvider(config.GOOGLE_SHEET_ID, config.GOOGLE_SERVICE_ACCOUNT_FILE)
   : new FixtureCatalogProvider(products as Product[], flavors as Flavor[], wholesale as WholesaleTier[], { envios: "Configurar en pestaña NEGOCIO" });
-const conversations = new ConversationRepository(config.DATABASE_PATH);
+const conversations = new ConversationRepository(config.DATABASE_PATH, config.CONVERSATION_IDLE_MINUTES);
 const notifier = config.TELEGRAM_BOT_TOKEN && config.HUMAN_NOTIFICATION_CHAT_ID ? new TelegramNotifier(config.TELEGRAM_BOT_TOKEN, config.HUMAN_NOTIFICATION_CHAT_ID) : new ConsoleNotifier();
 const takeover = new TakeoverService(conversations, notifier);
 const tools = new AgentToolService(new CatalogService(provider), new CartService(conversations), takeover, new SalesService(provider, conversations, config.SALE_CONFIRMATION_MODE));
