@@ -52,6 +52,19 @@ export class AgentToolService {
         const result = await this.takeover.request(channel, customerId, "Coordinar cambio de producto con envío", undefined, details);
         return { action: "CONSULTAR", customerMessage: "Dame un segundo que coordino el cambio y el envío", state: result.state, pausedUntil: result.pausedUntil };
       }
+      case "evaluar_producto_fallado": {
+        const daysSincePurchase = Number(args.daysSincePurchase);
+        if (!Number.isInteger(daysSincePurchase) || daysSincePurchase < 0) throw new Error("DAYS_SINCE_PURCHASE_INVALID");
+        if (daysSincePurchase > 2) return {
+          action: "FUERA_DE_PLAZO",
+          eligible: false,
+          customerMessage: "Disculpá, los cambios o devoluciones por productos fallados se aceptan dentro de los 2 días de la compra, como se aclara en la página. En este caso no podemos realizar el cambio ni la devolución."
+        };
+        const product = String(args.product ?? "");
+        const problem = String(args.problem ?? "Producto fallado");
+        const result = await this.takeover.request(channel, customerId, `Revisar producto fallado comprado hace ${daysSincePurchase} día(s)`, undefined, [product, problem].filter(Boolean));
+        return { action: "CONSULTAR", eligible: true, customerMessage: "Dame un minuto que lo consulto", state: result.state, pausedUntil: result.pausedUntil };
+      }
       case "reportar_llegada_cambio": {
         const status = String(args.status ?? "próximo a llegar");
         const product = String(args.product ?? "");

@@ -11,6 +11,7 @@ describe("contrato del plugin OpenClaw", () => {
       ,"reportar_cambio_envio",
       "reportar_llegada_cambio"
       ,"coordinar_visita_local"
+      ,"evaluar_producto_fallado"
     ]));
     for (const tool of manifest.contracts.tools) expect(manifest.toolMetadata).toHaveProperty(tool);
   });
