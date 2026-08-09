@@ -5,6 +5,7 @@ describe("contrato del plugin OpenClaw", () => {
   it("declara todas las herramientas comerciales instaladas", () => {
     expect(manifest.contracts.tools).toEqual(expect.arrayContaining([
       "listar_catalogo",
+      "listar_mayorista",
       "consultar_entrega",
       "solicitar_envio_app"
     ]));

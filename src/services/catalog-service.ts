@@ -59,5 +59,17 @@ export class CatalogService {
     const selected = quantity == null ? null : [...tiers].reverse().find(t => quantity >= t.from) ?? null;
     return { model: matched.name, tiers, selected };
   }
+  async wholesaleList(): Promise<Array<{ model: string; tiers: WholesaleTier[] }>> {
+    const groups = new Map<string, { model: string; tiers: WholesaleTier[] }>();
+    for (const tier of await this.provider.wholesaleTiers()) {
+      const key = normalize(tier.model);
+      const group = groups.get(key) ?? { model: tier.model, tiers: [] };
+      group.tiers.push(tier);
+      groups.set(key, group);
+    }
+    return [...groups.values()]
+      .map(group => ({ ...group, tiers: group.tiers.sort((a, b) => a.from - b.from) }))
+      .sort((a, b) => a.model.localeCompare(b.model, "es"));
+  }
   business(key: string) { return this.provider.businessValue(key); }
 }

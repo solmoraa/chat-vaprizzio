@@ -51,6 +51,7 @@ export class AgentToolService {
         if (quantity != null && quantity < 10) return { action: "MINORISTA", minimum: 10 };
         return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, ...quote };
       }
+      case "listar_mayorista": return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, models: await this.catalog.wholesaleList() };
       case "carrito_agregar": return { cart: this.cart.add(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_establecer": return { cart: this.cart.set(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_consultar": return { cart: this.cart.get(channel, customerId) };
