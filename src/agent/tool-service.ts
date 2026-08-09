@@ -11,7 +11,7 @@ export class AgentToolService {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
-    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
@@ -90,16 +90,29 @@ export class AgentToolService {
       }
       case "reportar_comprobante_web": {
         const deliveryMode = String(args.deliveryMode ?? "envio").toLowerCase();
+        const paymentTiming = String(args.paymentTiming ?? "antes_envio").toLowerCase();
         const orderReference = String(args.orderReference ?? "");
-        const base = "Gracias por enviarnos el comprobante! Apenas confirmemos el pago, confirmamos el envío y empezamos a preparar tu pedido.";
+        const base = paymentTiming === "vehiculo_enviado"
+          ? "Gracias por mandarnos el comprobante! 💚🙌 Recibimos el pago acordado después de enviar el vehículo. Apenas lo verifiquemos te confirmamos."
+          : paymentTiming === "al_recibir"
+            ? "Gracias por mandarnos el comprobante! 💚🙌 Recibimos el pago acordado al llegar el pedido. Apenas lo verifiquemos te confirmamos."
+            : "Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago, confirmamos el envío y empezamos a preparar tu pedido.";
         const customerMessage = deliveryMode === "uber_didi"
-          ? `${base} Nos vamos a comunicar para avisarte cuando salga el vehículo. Para cualquier cosa estamos en contacto.`
+          ? paymentTiming === "antes_envio"
+            ? `${base} Nos vamos a comunicar para avisarte cuando salga el vehículo 🚗 Para cualquier cosa estamos en contacto.`
+            : `${base} Para cualquier cosa estamos en contacto 😊`
           : deliveryMode === "punto_retiro"
-            ? "Gracias por enviarnos el comprobante! Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el punto de retiro. Para cualquier cosa estamos en contacto."
-            : `${base} Para cualquier cosa estamos en contacto.`;
+            ? "Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el punto de retiro. Para cualquier cosa estamos en contacto 😊"
+            : `${base} Para cualquier cosa estamos en contacto 😊`;
         const modeLabel = deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
         const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
         return { action: "VERIFICAR_PAGO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
+      }
+      case "reportar_condicion_pago": {
+        const proposedTiming = String(args.proposedTiming ?? "vehiculo_enviado").toLowerCase();
+        const label = proposedTiming === "al_recibir" ? "pagar cuando recibe el producto" : "pagar una vez que salga el vehículo";
+        const result = await this.takeover.request(channel, customerId, `Cliente propone ${label}`);
+        return { action: "CONSULTAR_CONDICION_PAGO", customerMessage: "Dale, dame un segundo que lo consulto", proposedTiming, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_solicitud_media": {
         const mediaType = String(args.mediaType ?? "foto").toLowerCase();
