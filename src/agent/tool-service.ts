@@ -44,6 +44,14 @@ export class AgentToolService {
         const result = await this.takeover.request(channel, customerId, "Pedido Flex demorado", undefined, [String(args.orderReference ?? "")]);
         return { action: "CONSULTAR", customerMessage: "Aguardame un momento que lo consulto", state: result.state, pausedUntil: result.pausedUntil };
       }
+      case "reportar_cambio_envio": {
+        const product = String(args.product ?? "");
+        const address = String(args.address ?? "");
+        const reason = String(args.reason ?? "Producto fallado");
+        const details = [product, address, reason].filter(Boolean);
+        const result = await this.takeover.request(channel, customerId, "Coordinar cambio de producto con envío", undefined, details);
+        return { action: "CONSULTAR", customerMessage: "Dame un segundo que coordino el cambio y el envío", state: result.state, pausedUntil: result.pausedUntil };
+      }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
         const quantity = args.quantity == null ? undefined : Number(args.quantity);

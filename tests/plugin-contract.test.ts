@@ -8,6 +8,7 @@ describe("contrato del plugin OpenClaw", () => {
       "listar_mayorista",
       "consultar_entrega",
       "solicitar_envio_app"
+      ,"reportar_cambio_envio"
     ]));
     for (const tool of manifest.contracts.tools) expect(manifest.toolMetadata).toHaveProperty(tool);
   });
