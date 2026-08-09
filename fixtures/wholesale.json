@@ -1,4 +1,12 @@
 [
-  {"from":10,"to":19,"unitPrice":22000,"action":"AUTOMATICO"},
-  {"from":20,"to":null,"unitPrice":null,"action":"CONSULTAR"}
+  {"model":"Elfbar Ice King 40K","from":10,"unitPriceUsd":12.80},
+  {"model":"Elfbar Ice King 40K","from":20,"unitPriceUsd":12.20},
+  {"model":"Elfbar Ice King 40K","from":50,"unitPriceUsd":11.80},
+  {"model":"Elfbar Ice King 40K","from":100,"unitPriceUsd":11.40},
+  {"model":"Elfbar Ice King 40K","from":200,"unitPriceUsd":11.20},
+  {"model":"Ignite V250","from":10,"unitPriceUsd":12.50},
+  {"model":"Ignite V250","from":20,"unitPriceUsd":12.20},
+  {"model":"Ignite V250","from":50,"unitPriceUsd":11.90},
+  {"model":"Ignite V250","from":100,"unitPriceUsd":11.65},
+  {"model":"Ignite V250","from":200,"unitPriceUsd":11.45}
 ]

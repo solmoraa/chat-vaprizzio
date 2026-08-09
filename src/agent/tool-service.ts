@@ -18,10 +18,15 @@ export class AgentToolService {
       case "consultar_precio": return { price: await this.catalog.price(String(args.sku)) };
       case "consultar_negocio": return { value: await this.catalog.business(String(args.key)) };
       case "consultar_mayorista": {
-        const quantity = Number(args.quantity); const tier = await this.catalog.wholesale(quantity);
-        if (!tier) return { found: false };
-        if (tier.action === "CONSULTAR") { await this.takeover.request(channel, customerId, "Precio mayorista especial", quantity); return { action: "CONSULTAR", customerMessage: "Por esa cantidad te puedo mejorar más el precio. Dame un segundo que consulto y te digo" }; }
-        return { action: "AUTOMATICO", unitPrice: tier.unitPrice };
+        const model = String(args.model ?? "");
+        const quantity = args.quantity == null ? undefined : Number(args.quantity);
+        const quote = await this.catalog.wholesale(model, quantity);
+        if (!quote) {
+          await this.takeover.request(channel, customerId, "Producto mayorista no encontrado", quantity, [model]);
+          return { action: "HUMANO", replyAllowed: false, reason: "PRODUCTO_NO_ENCONTRADO" };
+        }
+        if (quantity != null && quantity < 10) return { action: "MINORISTA", minimum: 10 };
+        return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, ...quote };
       }
       case "carrito_agregar": return { cart: this.cart.add(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_establecer": return { cart: this.cart.set(channel, customerId, String(args.sku), Number(args.quantity)) };

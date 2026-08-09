@@ -23,10 +23,9 @@ export interface Flavor {
 }
 
 export interface WholesaleTier {
+  model: string;
   from: number;
-  to: number | null;
-  unitPrice: number | null;
-  action: "AUTOMATICO" | "CONSULTAR";
+  unitPriceUsd: number;
 }
 
 export interface CartItem { sku: string; quantity: number; }

@@ -8,5 +8,11 @@ export const products: Product[] = [
   { sku:"OFF", brand:"Fake", model:"Fake", flavor:"Miami Mint", stock:50, price:1, profile:[], description:"", active:false }
 ];
 export const flavors: Flavor[] = [{ flavor:"Miami Mint",type:"mentolado",sweetness:2,freshness:10,description:"Menta",similarTo:[] },{ flavor:"Tiger Blood",type:"dulce",sweetness:9,freshness:2,description:"Frutal",similarTo:[] }];
-export const tiers: WholesaleTier[] = [{ from:10,to:19,unitPrice:22000,action:"AUTOMATICO" },{ from:20,to:null,unitPrice:null,action:"CONSULTAR" }];
+export const tiers: WholesaleTier[] = [
+  { model:"Elfbar Ice King 40K",from:10,unitPriceUsd:12.80 },
+  { model:"Elfbar Ice King 40K",from:20,unitPriceUsd:12.20 },
+  { model:"Elfbar Ice King 40K",from:50,unitPriceUsd:11.80 },
+  { model:"Elfbar Ice King 40K",from:100,unitPriceUsd:11.40 },
+  { model:"Elfbar Ice King 40K",from:200,unitPriceUsd:11.20 }
+];
 export const fixture = () => new FixtureCatalogProvider(structuredClone(products), flavors, tiers);

@@ -31,6 +31,20 @@ export class CatalogService {
   }
   async stock(sku: string) { const p = (await this.provider.products()).find(x => x.sku === sku); return { available: !!p && available(p), quantity: p?.stock ?? 0 }; }
   async price(sku: string) { return (await this.provider.products()).find(x => x.sku === sku)?.price ?? null; }
-  async wholesale(quantity: number): Promise<WholesaleTier | null> { return (await this.provider.wholesaleTiers()).find(t => quantity >= t.from && (t.to == null || quantity <= t.to)) ?? null; }
+  async wholesale(model: string, quantity?: number): Promise<{ model: string; tiers: WholesaleTier[]; selected: WholesaleTier | null } | null> {
+    const all = await this.provider.wholesaleTiers();
+    const names = [...new Set(all.map(t => t.model))];
+    const queryTokens = normalize(model).split(" ").filter(token => token.length >= 2);
+    const scored = names.map(name => {
+      const nameTokens = new Set(normalize(name).split(" "));
+      const tokenCoverage = queryTokens.length > 0 && queryTokens.every(token => nameTokens.has(token)) ? 0.92 : 0;
+      return { name, score: Math.max(similarity(name, model), tokenCoverage) };
+    }).sort((a, b) => b.score - a.score);
+    const matched = scored[0];
+    if (!matched || matched.score < 0.72) return null;
+    const tiers = all.filter(t => normalize(t.model) === normalize(matched.name)).sort((a, b) => a.from - b.from);
+    const selected = quantity == null ? null : [...tiers].reverse().find(t => quantity >= t.from) ?? null;
+    return { model: matched.name, tiers, selected };
+  }
   business(key: string) { return this.provider.businessValue(key); }
 }

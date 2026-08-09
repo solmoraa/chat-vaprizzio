@@ -30,8 +30,16 @@ export class GoogleSheetsCatalogProvider implements CatalogProvider {
     return rows.filter(r => r[0]).map(r => ({ flavor: String(r[0]), type: String(r[1] ?? ""), sweetness: number(r[2]), freshness: number(r[3]), description: String(r[4] ?? ""), similarTo: String(r[5] ?? "").split(",").map(x => x.trim()).filter(Boolean) }));
   }
   async wholesaleTiers(): Promise<WholesaleTier[]> {
-    const [, ...rows] = await this.rows("MAYORISTA!A:D");
-    return rows.filter(r => r[0]).map(r => ({ from: number(r[0]), to: r[1] === "" || r[1] == null ? null : number(r[1]), unitPrice: r[2] === "" || r[2] == null ? null : number(r[2]), action: String(r[3]).toUpperCase() === "AUTOMATICO" ? "AUTOMATICO" : "CONSULTAR" }));
+    const [, ...rows] = await this.rows("PRODUCTOS!T:V");
+    let currentModel = "";
+    const tiers: WholesaleTier[] = [];
+    for (const row of rows) {
+      if (String(row[0] ?? "").trim()) currentModel = String(row[0]).trim();
+      const from = number(row[1]);
+      const unitPriceUsd = number(row[2]);
+      if (currentModel && from >= 10 && unitPriceUsd > 0) tiers.push({ model: currentModel, from, unitPriceUsd });
+    }
+    return tiers;
   }
   async businessValue(key: string): Promise<string | null> {
     const [, ...rows] = await this.rows("NEGOCIO!A:B");
