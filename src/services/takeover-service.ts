@@ -14,7 +14,10 @@ export class TakeoverService {
     return false;
   }
   async request(channel: Channel, customerId: string, reason: string, quantity?: number, products?: string[]) {
-    const c = this.repo.setState(channel, customerId, "WAITING_HUMAN", new Date(Date.now() + 60 * 60 * 1000).toISOString());
+    const current = this.repo.getOrCreate(channel, customerId);
+    const existingPauseIsActive = current.state !== "AI_ACTIVE" && !!current.pausedUntil && Date.now() < new Date(current.pausedUntil).getTime();
+    const pausedUntil = existingPauseIsActive ? current.pausedUntil : new Date(Date.now() + 60 * 60 * 1000).toISOString();
+    const c = this.repo.setState(channel, customerId, "WAITING_HUMAN", pausedUntil);
     await this.notifier.notify({ channel, customerId, messages: c.lastMessages.slice(-5), reason, ...(quantity == null ? {} : { quantity }), ...(products ? { products } : {}) });
     return c;
   }

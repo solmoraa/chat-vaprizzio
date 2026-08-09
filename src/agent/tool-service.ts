@@ -9,7 +9,8 @@ export class AgentToolService {
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService()) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
-    if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state") return { blocked: true, reason: "AI_NOT_ACTIVE" };
+    const alertTools = new Set(["consultar_mayorista", "solicitar_envio_app", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "solicitar_intervencion_humana"]);
+    if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
       case "buscar_modelo": return this.catalog.byModel(String(args.query));
