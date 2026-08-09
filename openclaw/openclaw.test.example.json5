@@ -18,5 +18,5 @@
     allowedSessionKeyPrefixes: ["whatsapp:", "instagram:"]
   },
   plugins: { entries: { "vaprizzio-tools": { enabled: true, config: { baseUrl: "http://127.0.0.1:3000" } } } },
-  tools: { allow: ["vaprizzio-tools"] }
+  // Agregar estas herramientas solo en agents.entries[vaprizzio-sales-test].tools.allow.
 }

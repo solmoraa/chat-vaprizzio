@@ -16,5 +16,5 @@ const descriptions: Record<string, string> = {
 export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commercial Tools", description:"Herramientas comerciales verificadas", register(api) {
   for (const [name, parameters] of Object.entries(schemas)) api.registerTool({ name, description:descriptions[name] ?? name, parameters,
     async execute(_id, params) { const configured=(api as unknown as {pluginConfig?:{baseUrl?:string}}).pluginConfig?.baseUrl; const baseUrl=configured ?? "http://127.0.0.1:3000"; const response=await fetch(`${baseUrl}/api/tools/${name}`,{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify(params)}); const details=await response.json(); if(!response.ok) throw new Error(`VAPRIZZIO_TOOL_ERROR:${response.status}`); return {content:[{type:"text",text:JSON.stringify(details)}],details}; }
-  });
+  }, { optional:true });
 }});
