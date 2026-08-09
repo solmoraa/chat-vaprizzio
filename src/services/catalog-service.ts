@@ -29,6 +29,19 @@ export class CatalogService {
     const products = await this.live(); const flavors = await this.provider.flavors(); const q = normalize(profile);
     return products.map(p => { const f = flavors.find(x => normalize(x.flavor) === normalize(p.flavor)); const score = p.profile.some(x => normalize(x).includes(q)) || normalize(f?.type ?? "").includes(q) ? 2 : Math.max(similarity(p.description, q), similarity(f?.description ?? "", q)); return { p, score }; }).filter(x => x.score >= 0.45).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.p);
   }
+  async priceList() {
+    const products = await this.live();
+    const groups = new Map<string, { brand: string; model: string; variants: Array<{ flavor: string; price: number }> }>();
+    for (const product of products) {
+      const key = `${normalize(product.brand)}|${normalize(product.model)}`;
+      const group = groups.get(key) ?? { brand: product.brand, model: product.model, variants: [] };
+      group.variants.push({ flavor: product.flavor, price: product.price });
+      groups.set(key, group);
+    }
+    return [...groups.values()]
+      .map(group => ({ ...group, variants: group.variants.sort((a, b) => a.flavor.localeCompare(b.flavor, "es")) }))
+      .sort((a, b) => `${a.brand} ${a.model}`.localeCompare(`${b.brand} ${b.model}`, "es"));
+  }
   async stock(sku: string) { const p = (await this.provider.products()).find(x => x.sku === sku); return { available: !!p && available(p), quantity: p?.stock ?? 0 }; }
   async price(sku: string) { return (await this.provider.products()).find(x => x.sku === sku)?.price ?? null; }
   async wholesale(model: string, quantity?: number): Promise<{ model: string; tiers: WholesaleTier[]; selected: WholesaleTier | null } | null> {

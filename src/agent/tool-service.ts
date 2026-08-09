@@ -15,6 +15,7 @@ export class AgentToolService {
       case "buscar_modelo": return this.catalog.byModel(String(args.query));
       case "buscar_producto": return this.catalog.specific(String(args.model), String(args.flavor));
       case "buscar_por_perfil": return this.catalog.byProfile(String(args.profile));
+      case "listar_catalogo": return { models: await this.catalog.priceList(), onlyAvailable: true };
       case "consultar_stock": return this.catalog.stock(String(args.sku));
       case "consultar_precio": return { price: await this.catalog.price(String(args.sku)) };
       case "consultar_negocio": return { value: await this.catalog.business(String(args.key)) };
