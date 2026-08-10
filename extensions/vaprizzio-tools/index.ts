@@ -80,14 +80,47 @@ const defectivePurchaseAge = (value: unknown) => {
 
 export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commercial Tools", description:"Herramientas comerciales verificadas", register(api) {
   const alertedRuns = new Set<string>();
+  const requiredCustomerMessages = new Map<string, string>();
   api.on("after_tool_call", async (event: any) => {
-    if (event?.runId && alertToolNames.includes(String(event.toolName)) && !event.error) alertedRuns.add(String(event.runId));
+    if (!event?.runId || !alertToolNames.includes(String(event.toolName)) || event.error) return;
+    const runId = String(event.runId);
+    alertedRuns.add(runId);
+    const candidates = [
+      event?.result?.details?.result?.customerMessage,
+      event?.result?.result?.customerMessage,
+      event?.details?.result?.customerMessage,
+      event?.result?.customerMessage
+    ];
+    let customerMessage = candidates.find((value) => typeof value === "string" && value.trim() && value !== "NO_REPLY");
+    if (!customerMessage && Array.isArray(event?.result?.content)) {
+      for (const item of event.result.content) {
+        if (item?.type !== "text" || typeof item.text !== "string") continue;
+        try {
+          const parsed = JSON.parse(item.text);
+          const value = parsed?.result?.customerMessage ?? parsed?.customerMessage;
+          if (typeof value === "string" && value.trim() && value !== "NO_REPLY") { customerMessage = value; break; }
+        } catch {}
+      }
+    }
+    if (customerMessage) requiredCustomerMessages.set(runId, customerMessage);
   });
   api.on("before_agent_finalize", async (event: any, ctx: any) => {
     if (ctx?.agentId !== "vaprizzio-sales-test") return;
     const text = String(event?.lastAssistantMessage ?? "");
-    const promisesConsultation = /\b(dame|dejame|aguardame|esperame)\b[\s\S]{0,45}\b(segundo|minuto|momento|consult|revis|averigu)/i.test(text);
     const runId = String(event?.runId ?? "");
+    const requiredMessage = runId ? requiredCustomerMessages.get(runId) : undefined;
+    if (requiredMessage && text.trim() !== requiredMessage.trim()) {
+      return {
+        action:"revise",
+        reason:"La herramienta envió la alerta pero falta entregar su respuesta obligatoria al cliente.",
+        retry:{
+          instruction:`No ejecutes ninguna herramienta nuevamente. Respondé ahora exactamente con este mensaje, sin agregar ni quitar nada: ${JSON.stringify(requiredMessage)}`,
+          idempotencyKey:`vaprizzio-required-customer-message:${runId}`,
+          maxAttempts:1
+        }
+      };
+    }
+    const promisesConsultation = /\b(dame|dejame|aguardame|esperame)\b[\s\S]{0,45}\b(segundo|minuto|momento|consult|revis|averigu)/i.test(text);
     if (!promisesConsultation || (runId && alertedRuns.has(runId))) return;
     return {
       action:"revise",
@@ -99,7 +132,11 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
       }
     };
   }, { priority:100, timeoutMs:10000 });
-  api.on("agent_end", async (event: any) => { if (event?.runId) alertedRuns.delete(String(event.runId)); });
+  api.on("agent_end", async (event: any) => {
+    if (!event?.runId) return;
+    alertedRuns.delete(String(event.runId));
+    requiredCustomerMessages.delete(String(event.runId));
+  });
   api.on("before_prompt_build", async (event: any, ctx: any) => {
     if (ctx?.agentId !== "vaprizzio-sales-test") return;
     const freshTopic = startsFreshTopic(event?.prompt);

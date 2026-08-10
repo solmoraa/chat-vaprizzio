@@ -40,4 +40,11 @@ describe("contrato del plugin OpenClaw", () => {
     expect(source).toContain("Está prohibido volver a preguntar hace cuántos días lo compró");
     expect(source).toContain("daysSincePurchase=${purchaseAge}");
   });
+
+  it("fuerza la respuesta al cliente cuando la alerta ya fue enviada", () => {
+    const source = readFileSync(new URL("../extensions/vaprizzio-tools/index.ts", import.meta.url), "utf8");
+    expect(source).toContain("requiredCustomerMessages");
+    expect(source).toContain("vaprizzio-required-customer-message");
+    expect(source).toContain("No ejecutes ninguna herramienta nuevamente");
+  });
 });
