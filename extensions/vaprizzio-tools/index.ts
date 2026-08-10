@@ -52,7 +52,7 @@ const descriptions: Record<string, string> = {
   reportar_condicion_pago:"OBLIGATORIA si el cliente propone pagar al salir el vehículo o al recibir el producto. Notifica a Telegram y pausa la IA para que una persona decida.",
   iniciar_nuevo_tema:"Reinicio suave ante un saludo que abre otro tema: reactiva la IA, conserva el historial y evita arrastrar el asunto anterior salvo referencia explícita.",
   reportar_consulta_fuera_horario:"OBLIGATORIA entre las 19 y las 23 ante una consulta con posible intención de compra, pedido o visita. Notifica a Telegram y pausa la IA.",
-  buscar_sabor:"Busca el sabor en todas las marcas y solo devuelve productos disponibles.", buscar_modelo:"Lista sabores disponibles de un modelo.", buscar_producto:"Busca un producto específico por modelo y sabor.", buscar_por_perfil:"Recomienda pocos productos disponibles por perfil.", listar_catalogo:"Devuelve la lista completa de modelos, precios y sabores con stock. Si devuelve models, respondé con la lista y nunca solicites intervención.", consultar_stock:"Verifica disponibilidad; no reveles quantity salvo pregunta explícita.", consultar_precio:"Obtiene el precio actual por SKU.", consultar_entrega:"Cotiza retiro o envío Flex y prepara la cotización nacional.", solicitar_envio_app:"Consulta el costo variable de Uber o Didi, notifica a Telegram y pausa la IA.", reportar_pedido_inmediato_app:"OBLIGATORIA cuando el cliente confirma un pedido inmediato, eligió vape y pasó dirección. Notifica a Telegram y pausa la IA para gestionar Uber o Didi.", reportar_demora_envio:"OBLIGATORIA ante un pedido no recibido. Correo indica seguimiento; Flex vencido, Uber/Didi u otro medio envían alerta privada a Telegram y pausan la IA.", reportar_cambio_envio:"Coordina el envío de un cambio ya autorizado. Notifica a Telegram y pausa la IA.", evaluar_producto_fallado:"OBLIGATORIA después de preguntar hace cuántos días compró un producto fallado. Más de 2 días rechaza; 2 o menos notifica a Telegram y pausa la IA.", reportar_llegada_cambio:"OBLIGATORIA si un cliente con un cambio dice que está afuera, viniendo, cerca o por llegar. Notifica a Telegram y pausa la IA.", coordinar_visita_local:"OBLIGATORIA cuando el cliente decide retirar o cambiar un producto en el local. Notifica a Telegram y pausa la IA para acordar el horario.", reportar_comprobante_web:"OBLIGATORIA cuando el cliente envía un comprobante de una compra web. Agradece, notifica a Telegram y pausa la IA para verificar el pago y continuar según la entrega.", reportar_solicitud_media:"OBLIGATORIA cuando el cliente pide una foto o video. Notifica a Telegram, responde que ya se lo mandan y pausa la IA.", reportar_llegada_sin_producto:"Herramienta anterior para llegada sin producto decidido.", reportar_llegada_sin_horario:"OBLIGATORIA si el cliente ya está viniendo al local y no acordó horario, tenga o no producto decidido. Notifica y pausa la IA.", cerrar_conversacion:"Limpia el estado comercial cuando el cliente confirma que terminó. El siguiente mensaje comienza una conversación nueva.", consultar_negocio:"Obtiene una regla comercial desde NEGOCIO.", consultar_mayorista:"Lista todos los precios mayoristas finales en USD cripto para un modelo específico; si no existe, pausa la IA y notifica al humano.", listar_mayorista:"Devuelve automáticamente todos los modelos y precios mayoristas de Google Sheets. Usala para una consulta mayorista general y nunca solicites intervención.", carrito_agregar:"Guarda internamente un producto elegido; nunca menciones carrito al cliente.", carrito_establecer:"Corrige internamente una cantidad; nunca menciones carrito al cliente.", carrito_consultar:"Lee la selección interna sin mencionar carrito.", resumir_pedido:"Cotiza el pedido sin confirmarlo ni descontar stock.", solicitar_intervencion_humana:"Usala solo ante un caso comercial realmente desconocido; nunca después de listar_catalogo o listar_mayorista exitoso."
+  buscar_sabor:"Busca el sabor en todas las marcas y solo devuelve productos disponibles.", buscar_modelo:"Lista sabores disponibles de un modelo.", buscar_producto:"Busca un producto específico por modelo y sabor.", buscar_por_perfil:"Recomienda pocos productos disponibles por perfil.", listar_catalogo:"Devuelve la lista completa de modelos, precios y sabores con stock. Si devuelve models, respondé con la lista y nunca solicites intervención.", consultar_stock:"Verifica disponibilidad; no reveles quantity salvo pregunta explícita.", consultar_precio:"Obtiene el precio actual por SKU.", consultar_entrega:"Cotiza retiro o envío Flex y prepara la cotización nacional.", solicitar_envio_app:"Consulta el costo variable de Uber o Didi, notifica a Telegram y pausa la IA.", reportar_pedido_inmediato_app:"OBLIGATORIA cuando el cliente confirma un pedido inmediato, eligió vape y pasó dirección. Notifica a Telegram y pausa la IA para gestionar Uber o Didi.", reportar_demora_envio:"OBLIGATORIA ante un pedido no recibido. Correo indica seguimiento; Flex vencido, Uber/Didi u otro medio envían alerta privada a Telegram y pausan la IA.", reportar_cambio_envio:"Coordina el envío de un cambio ya autorizado. Notifica a Telegram y pausa la IA.", evaluar_producto_fallado:"OBLIGATORIA ante un producto fallado cuando el cliente ya informó hace cuántos días lo compró, incluso en el mismo mensaje. No vuelvas a preguntarlo si ya dijo el plazo: convertí hoy=0, ayer=1 y expresiones como hace dos días=2. Más de 2 días rechaza; 2 o menos notifica a Telegram y pausa la IA.", reportar_llegada_cambio:"OBLIGATORIA si un cliente con un cambio dice que está afuera, viniendo, cerca o por llegar. Notifica a Telegram y pausa la IA.", coordinar_visita_local:"OBLIGATORIA cuando el cliente decide retirar o cambiar un producto en el local. Notifica a Telegram y pausa la IA para acordar el horario.", reportar_comprobante_web:"OBLIGATORIA cuando el cliente envía un comprobante de una compra web. Agradece, notifica a Telegram y pausa la IA para verificar el pago y continuar según la entrega.", reportar_solicitud_media:"OBLIGATORIA cuando el cliente pide una foto o video. Notifica a Telegram, responde que ya se lo mandan y pausa la IA.", reportar_llegada_sin_producto:"Herramienta anterior para llegada sin producto decidido.", reportar_llegada_sin_horario:"OBLIGATORIA si el cliente ya está viniendo al local y no acordó horario, tenga o no producto decidido. Notifica y pausa la IA.", cerrar_conversacion:"Limpia el estado comercial cuando el cliente confirma que terminó. El siguiente mensaje comienza una conversación nueva.", consultar_negocio:"Obtiene una regla comercial desde NEGOCIO.", consultar_mayorista:"Lista todos los precios mayoristas finales en USD cripto para un modelo específico; si no existe, pausa la IA y notifica al humano.", listar_mayorista:"Devuelve automáticamente todos los modelos y precios mayoristas de Google Sheets. Usala para una consulta mayorista general y nunca solicites intervención.", carrito_agregar:"Guarda internamente un producto elegido; nunca menciones carrito al cliente.", carrito_establecer:"Corrige internamente una cantidad; nunca menciones carrito.", carrito_consultar:"Lee la selección interna sin mencionar carrito.", resumir_pedido:"Cotiza el pedido sin confirmarlo ni descontar stock.", solicitar_intervencion_humana:"Usala solo ante un caso comercial realmente desconocido; nunca después de listar_catalogo o listar_mayorista exitoso."
 };
 
 const normalizeInboundText = (value: unknown) => String(value ?? "")
@@ -64,6 +64,18 @@ const startsFreshTopic = (value: unknown) => {
   const startsWithGreeting = /^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)(\b|[!?])/.test(text);
   const explicitContinuation = /\b(mi pedido|mi comprobante|ese envio|el envio que|el uber que|el didi que|lo de antes|lo anterior|seguimos con|sigo con)\b/.test(text);
   return startsWithGreeting && !explicitContinuation;
+};
+
+const defectivePurchaseAge = (value: unknown) => {
+  const text = normalizeInboundText(value);
+  if (!/\b(fallad[oa]?|falla|anda mal|no funciona|roto|quemado|problema)\b/.test(text)) return null;
+  if (/\b(hoy|lo compre hoy|compre hoy)\b/.test(text)) return 0;
+  if (/\b(ayer|lo compre ayer|compre ayer)\b/.test(text)) return 1;
+  if (/\b(anteayer|antes de ayer)\b/.test(text)) return 2;
+  const words: Record<string, number> = { un:1, uno:1, una:1, dos:2, tres:3, cuatro:4, cinco:5, seis:6, siete:7, ocho:8, nueve:9, diez:10 };
+  const match = text.match(/\bhace\s+(\d+|un|uno|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez)\s+dias?\b/);
+  if (!match) return null;
+  return /^\d+$/.test(match[1]) ? Number(match[1]) : words[match[1]] ?? null;
 };
 
 export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commercial Tools", description:"Herramientas comerciales verificadas", register(api) {
@@ -89,19 +101,26 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
   }, { priority:100, timeoutMs:10000 });
   api.on("agent_end", async (event: any) => { if (event?.runId) alertedRuns.delete(String(event.runId)); });
   api.on("before_prompt_build", async (event: any, ctx: any) => {
-    if (ctx?.agentId !== "vaprizzio-sales-test" || !startsFreshTopic(event?.prompt)) return;
+    if (ctx?.agentId !== "vaprizzio-sales-test") return;
+    const freshTopic = startsFreshTopic(event?.prompt);
+    const purchaseAge = defectivePurchaseAge(event?.prompt);
+    if (!freshTopic && purchaseAge === null) return;
     const channel = String(ctx?.channel ?? ctx?.messageProvider ?? "");
     const customerId = String(ctx?.senderId ?? "");
-    if (!(["whatsapp", "instagram"].includes(channel)) || !customerId) return;
-    const config=(event?.context?.pluginConfig ?? (api as unknown as {pluginConfig?:{baseUrl?:string;apiToken?:string}}).pluginConfig) as {baseUrl?:string;apiToken?:string} | undefined;
-    const baseUrl=config?.baseUrl ?? "http://127.0.0.1:3000";
-    const response=await fetch(`${baseUrl}/api/tools/iniciar_nuevo_tema`, {
-      method:"POST",
-      headers:{"content-type":"application/json",...(config?.apiToken ? {authorization:`Bearer ${config.apiToken}`} : {})},
-      body:JSON.stringify({channel,customerId,triggerMessage:String(event.prompt)})
-    });
-    if (!response.ok) throw new Error(`VAPRIZZIO_TOPIC_RESET_ERROR:${response.status}`);
-    return { prependSystemContext:"REGLA AUTOMATICA YA EJECUTADA: este saludo abre una conversacion nueva. Si es solo un saludo, saluda y pregunta si buscaba algun vape. Si incluye una consulta, respondela normalmente. No menciones comprobantes, coordinaciones, pausas ni el tema anterior, salvo que el cliente lo relacione explicitamente." };
+    const rules: string[] = [];
+    if (freshTopic && ["whatsapp", "instagram"].includes(channel) && customerId) {
+      const config=(event?.context?.pluginConfig ?? (api as unknown as {pluginConfig?:{baseUrl?:string;apiToken?:string}}).pluginConfig) as {baseUrl?:string;apiToken?:string} | undefined;
+      const baseUrl=config?.baseUrl ?? "http://127.0.0.1:3000";
+      const response=await fetch(`${baseUrl}/api/tools/iniciar_nuevo_tema`, {
+        method:"POST",
+        headers:{"content-type":"application/json",...(config?.apiToken ? {authorization:`Bearer ${config.apiToken}`} : {})},
+        body:JSON.stringify({channel,customerId,triggerMessage:String(event.prompt)})
+      });
+      if (!response.ok) throw new Error(`VAPRIZZIO_TOPIC_RESET_ERROR:${response.status}`);
+      rules.push("REGLA AUTOMATICA YA EJECUTADA: este saludo abre una conversacion nueva. Si es solo un saludo, saluda y pregunta si buscaba algun vape. Si incluye una consulta, respondela normalmente. No menciones comprobantes, coordinaciones, pausas ni el tema anterior, salvo que el cliente lo relacione explicitamente.");
+    }
+    if (purchaseAge !== null) rules.push(`DATO YA INFORMADO POR EL CLIENTE: compró el producto hace ${purchaseAge} día(s). Está prohibido volver a preguntar hace cuántos días lo compró. Ejecutá ahora evaluar_producto_fallado con daysSincePurchase=${purchaseAge} y respondé únicamente su customerMessage.`);
+    return rules.length ? { prependSystemContext:rules.join("\n") } : undefined;
   }, { priority:100, timeoutMs:10000 });
   for (const [name, parameters] of Object.entries(schemas)) api.registerTool({ name, description:descriptions[name] ?? name, parameters,
     async execute(_id, params) { const config=(api as unknown as {pluginConfig?:{baseUrl?:string;apiToken?:string}}).pluginConfig; const baseUrl=config?.baseUrl ?? "http://127.0.0.1:3000"; const response=await fetch(`${baseUrl}/api/tools/${name}`,{method:"POST",headers:{"content-type":"application/json",...(config?.apiToken ? {authorization:`Bearer ${config.apiToken}`} : {})},body:JSON.stringify(params)}); const details=await response.json(); if(!response.ok) throw new Error(`VAPRIZZIO_TOOL_ERROR:${response.status}`); return {content:[{type:"text",text:JSON.stringify(details)}],details}; }

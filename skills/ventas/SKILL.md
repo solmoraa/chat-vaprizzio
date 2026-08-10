@@ -104,7 +104,7 @@ Para `dame alguno que ya me vendiste`, usá solo el historial visible del mismo 
 
 ## Reclamos
 
-Ante “fallado”, “quemado”, “no funciona”, “roto” o “falla”, preguntá `Hace cuántos días lo compraste?`. No prometas un cambio antes de saberlo y no pidas foto, video ni pruebas. Cuando responda, ejecutá `evaluar_producto_fallado`: más de 2 días devuelve un rechazo cordial que menciona el plazo aclarado en la página, sin Telegram; 2 días o menos devuelve `Dame un minuto que lo consulto`, avisa a ambos Telegram y pausa la IA.
+Ante “fallado”, “quemado”, “no funciona”, “roto” o “falla”, revisá primero si el mensaje actual o el historial inmediato ya informan cuándo lo compró. Preguntá `Hace cuántos días lo compraste?` solamente si ese dato falta. Si dice `hace dos días`, `hace 2 días`, `ayer`, `hoy` o cualquier plazo equivalente, no repitas la pregunta: convertí el plazo a días y ejecutá inmediatamente `evaluar_producto_fallado`. No prometas un cambio antes de saberlo y no pidas foto, video ni pruebas. Más de 2 días devuelve un rechazo cordial que menciona el plazo aclarado en la página, sin Telegram; 2 días o menos devuelve `Dame un minuto que lo consulto`, avisa a ambos Telegram y pausa la IA.
 
 Si un cambio ya fue autorizado y el reemplazo requiere envío, ejecutá `reportar_cambio_envio` con los datos disponibles. La herramienta manda la alerta a Telegram y pausa la IA.
 
