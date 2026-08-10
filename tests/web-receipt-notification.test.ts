@@ -5,10 +5,10 @@ import { TakeoverService } from "../src/services/takeover-service.js";
 
 describe("comprobantes de compras web", () => {
   it.each([
-    ["sin_definir", "poner en contacto para coordinar la entrega"],
+    ["sin_definir", "empezamos a preparar tu pedido"],
     ["envio", "empezamos a preparar tu pedido"],
     ["uber_didi", "cuando salga el vehículo"],
-    ["punto_retiro", "coordinar el punto de retiro"]
+    ["punto_retiro", "coordinar el día y horario de retiro en el local"]
   ])("notifica, agradece y pausa para %s", async (deliveryMode, expectedText) => {
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();
@@ -24,6 +24,19 @@ describe("comprobantes de compras web", () => {
     expect(String((result as {customerMessage:string}).customerMessage)).toContain(expectedText);
     expect(String((result as {customerMessage:string}).customerMessage)).toContain("Para cualquier cosa estamos en contacto");
     expect(takeover.canAiReply("whatsapp", `comprobante-${deliveryMode}`)).toBe(false);
+  });
+
+  it("omite entrega y retiro cuando la modalidad no está definida", async () => {
+    const repo = new ConversationRepository(":memory:");
+    const takeover = new TakeoverService(repo, { notify: vi.fn() });
+    const tools = new AgentToolService({} as never, {} as never, takeover, {} as never);
+
+    const result = await tools.execute("reportar_comprobante_web", {
+      channel:"whatsapp", customerId:"comprobante-sin-modalidad", deliveryMode:"sin_definir"
+    });
+    const message = String((result as {customerMessage:string}).customerMessage);
+
+    expect(message).not.toMatch(/coordinar|entrega|envío|retiro|punto de retiro/i);
   });
 
   it.each([

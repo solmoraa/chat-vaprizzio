@@ -123,13 +123,13 @@ export class AgentToolService {
             ? "Gracias por mandarnos el comprobante! 💜🙌 Recibimos el pago acordado al llegar el pedido. Apenas lo verifiquemos te confirmamos."
             : "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, confirmamos el envío y empezamos a preparar tu pedido.";
         const customerMessage = deliveryMode === "sin_definir"
-          ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a poner en contacto para coordinar la entrega. Para cualquier cosa estamos en contacto 😊"
+          ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Para cualquier cosa estamos en contacto 😊"
           : deliveryMode === "uber_didi"
           ? paymentTiming === "antes_envio"
             ? `${base} Nos vamos a comunicar para avisarte cuando salga el vehículo 🚗 Para cualquier cosa estamos en contacto.`
             : `${base} Para cualquier cosa estamos en contacto 😊`
           : deliveryMode === "punto_retiro"
-            ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el punto de retiro. Para cualquier cosa estamos en contacto 😊"
+            ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el día y horario de retiro en el local. Para cualquier cosa estamos en contacto 😊"
             : `${base} Para cualquier cosa estamos en contacto 😊`;
         const modeLabel = deliveryMode === "sin_definir" ? "entrega sin definir" : deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
         const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
