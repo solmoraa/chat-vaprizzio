@@ -8,9 +8,8 @@ describe("intención general de comprar un vape", () => {
   it("envía la página y explica cómo elegir", () => {
     for (const instructions of [agents, skill]) {
       expect(instructions).toContain("no sé qué vape quiero");
-      expect(instructions).toContain("elegí el vape de la marca que quieras");
+      expect(instructions).toContain("Te dejo la página para que elijas el vape de la marca que quieras");
       expect(instructions).toContain("sabores disponibles");
-      expect(instructions).toContain("Entrá a la página, elegí el vape de la marca que quieras");
       expect(instructions.indexOf("sabores disponibles")).toBeLessThan(instructions.indexOf("https://www.vaprizzio.com/productos/", instructions.indexOf("no sé qué vape quiero")));
       expect(instructions).toContain("Si tenés alguna otra duda escribime");
       expect(instructions).toContain("https://www.vaprizzio.com/productos/");
