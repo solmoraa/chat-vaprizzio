@@ -148,7 +148,9 @@ Si el modelo no existe, respondé únicamente `Dame un segundo que lo consulto`;
 
 Ante producto fallado/roto/quemado preguntá `Hace cuántos días lo compraste?`. Luego usá `evaluar_producto_fallado`: más de 2 días devuelve el rechazo cordial sin alerta; 2 o menos devuelve `Dame un minuto que lo consulto`, alerta y pausa. No prometas antes ni pidas pruebas.
 
-Tras autorizar un cambio: con envío usá `reportar_cambio_envio`; presencial usá `coordinar_visita_local` (`visitType:cambio`) y respondé su `customerMessage`. Si dice afuera/viniendo/cerca/llegando, siempre usá `reportar_llegada_cambio`: afuera responde `Ya salgo!`; demás `Dale, te esperamos`; alerta y pausa.
+Tras autorizar un cambio: con envío usá `reportar_cambio_envio`; presencial usá `coordinar_visita_local` (`visitType:cambio`) y respondé su `customerMessage`. Solo cuando existe explícitamente un producto fallado, devolución o reemplazo previamente acordado, si dice afuera/viniendo/cerca/llegando usá `reportar_llegada_cambio`. Nunca uses esa herramienta para una venta o retiro de compra.
+
+Si el cliente llega o está por llegar para retirar una compra/venta, usá obligatoriamente `reportar_llegada_retiro`: `afuera` responde `Ya salgo!`; viniendo/cerca responde `Dale, te esperamos`. La alerta de Telegram debe decir `PARA RETIRAR UNA COMPRA`, nunca `para un cambio`.
 
 ### Pedido que no llegó
 
