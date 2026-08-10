@@ -1,9 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AgentToolService } from "../src/agent/tool-service.js";
 import { ConversationRepository } from "../src/database/conversation-repository.js";
 import { TakeoverService } from "../src/services/takeover-service.js";
 
 describe("pedido inmediato por Uber o Didi", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-09T20:00:00Z"));
+  });
+
+  afterEach(() => vi.useRealTimers());
+
   it("notifica cuando ya hay producto, confirmación y dirección", async () => {
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();
@@ -39,7 +46,6 @@ describe("pedido inmediato por Uber o Didi", () => {
   });
 
   it("desde las 22 no ofrece envío inmediato ni notifica", async () => {
-    vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-10T01:05:00Z"));
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();
@@ -52,6 +58,5 @@ describe("pedido inmediato por Uber o Didi", () => {
 
     expect(result).toMatchObject({ action:"PROGRAMAR_MANANA", customerMessage:expect.stringContaining("mañana") });
     expect(notify).not.toHaveBeenCalled();
-    vi.useRealTimers();
   });
 });

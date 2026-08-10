@@ -34,4 +34,11 @@ describe("intención general de comprar un vape", () => {
     expect(agents).toContain("No agregues horarios, retiro, Uber, Didi, envíos ni despacho");
     expect(skill).toContain("No agregues horarios, retiro, Uber, Didi, envíos o despacho");
   });
+
+  it("no vuelve a ofrecer enlaces que ya fueron enviados", () => {
+    expect(agents).toContain("Si ya incluiste uno o más enlaces directos de productos");
+    expect(agents).toContain("Te gusta alguno para que te pase el link?");
+    expect(skill).toContain("Si la respuesta ya contiene uno o más `productUrl`");
+    expect(skill).toContain("no ofrezcas pasarlos después");
+  });
 });
