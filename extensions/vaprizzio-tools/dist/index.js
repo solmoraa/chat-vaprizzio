@@ -59,8 +59,7 @@ const startsFreshTopic = (value) => {
     const text = normalizeInboundText(value);
     const startsWithGreeting = /^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)(\b|[!?])/.test(text);
     const explicitContinuation = /\b(mi pedido|mi comprobante|ese envio|el envio que|el uber que|el didi que|lo de antes|lo anterior|seguimos con|sigo con)\b/.test(text);
-    const withoutGreeting = text.replace(/^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)([!? ]+|$)/, "").trim();
-    return startsWithGreeting && withoutGreeting.split(" ").filter(Boolean).length >= 3 && !explicitContinuation;
+    return startsWithGreeting && !explicitContinuation;
 };
 export default definePluginEntry({ id: "vaprizzio-tools", name: "Vaprizzio Commercial Tools", description: "Herramientas comerciales verificadas", register(api) {
         api.on("before_prompt_build", async (event, ctx) => {
@@ -79,7 +78,7 @@ export default definePluginEntry({ id: "vaprizzio-tools", name: "Vaprizzio Comme
             });
             if (!response.ok)
                 throw new Error(`VAPRIZZIO_TOPIC_RESET_ERROR:${response.status}`);
-            return { prependSystemContext: "REGLA AUTOMATICA YA EJECUTADA: este mensaje abre un tema nuevo. Responde solamente la consulta actual con normalidad. No menciones comprobantes, coordinaciones, pausas ni el tema anterior, salvo que el cliente lo relacione explicitamente." };
+            return { prependSystemContext: "REGLA AUTOMATICA YA EJECUTADA: este saludo abre una conversacion nueva. Si es solo un saludo, saluda y pregunta si buscaba algun vape. Si incluye una consulta, respondela normalmente. No menciones comprobantes, coordinaciones, pausas ni el tema anterior, salvo que el cliente lo relacione explicitamente." };
         }, { priority: 100, timeoutMs: 10000 });
         for (const [name, parameters] of Object.entries(schemas))
             api.registerTool({ name, description: descriptions[name] ?? name, parameters,

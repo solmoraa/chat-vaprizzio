@@ -25,7 +25,7 @@ describe("reinicio suave de tema", () => {
     });
   });
 
-  it("mantiene silencio ante un saludo durante una coordinación humana", async () => {
+  it("reactiva una conversación nueva ante un saludo solo", async () => {
     const repo = new ConversationRepository(":memory:", 720);
     const takeover = new TakeoverService(repo, { notify:vi.fn() });
     const tools = new AgentToolService({} as never, {} as never, takeover, {} as never, undefined, repo);
@@ -35,8 +35,8 @@ describe("reinicio suave de tema", () => {
       channel:"whatsapp", customerId:"coordinando", triggerMessage:"hola cómo estás"
     });
 
-    expect(result).toMatchObject({ action:"MANTENER_ATENCION_HUMANA", customerMessage:"NO_REPLY", state:"WAITING_HUMAN" });
-    expect(takeover.canAiReply("whatsapp", "coordinando")).toBe(false);
+    expect(result).toMatchObject({ action:"NUEVO_TEMA", state:"AI_ACTIVE", contextPreserved:true });
+    expect(takeover.canAiReply("whatsapp", "coordinando")).toBe(true);
   });
 
   it("reactiva automáticamente una consulta nueva de stock", async () => {

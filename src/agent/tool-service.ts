@@ -228,9 +228,6 @@ export class AgentToolService {
       }
       case "cerrar_conversacion": { this.conversations?.releaseWholesaleReservation(channel, customerId); return { action: "CONVERSACION_CERRADA", customerMessage: "Gracias por escribirnos!", freshContextNextMessage: true, conversation: this.takeover.close(channel, customerId) }; }
       case "iniciar_nuevo_tema": {
-        const normalizedMessage = triggerMessage.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
-        const greetingOnly = /^(hola|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas|hola como estas|hola buen dia|hola buenos dias)$/.test(normalizedMessage);
-        if (greetingOnly) return { action:"MANTENER_ATENCION_HUMANA", customerMessage:"NO_REPLY", state:"WAITING_HUMAN", contextPreserved:true };
         const resumed = this.takeover.resume(channel, customerId);
         return { action:"NUEVO_TEMA", state:resumed.state, contextPreserved:true, instruction:"Respondé la consulta actual sin mencionar el tema anterior. Usá el historial solo si el cliente lo relaciona explícitamente." };
       }
