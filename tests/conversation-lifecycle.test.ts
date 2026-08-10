@@ -3,7 +3,7 @@ import { ConversationRepository } from "../src/database/conversation-repository.
 
 describe("ciclo de conversación", () => {
   it("limpia todo el estado al cerrar explícitamente", () => {
-    const repo = new ConversationRepository(":memory:", 1440);
+    const repo = new ConversationRepository(":memory:", 720);
     const conversation = repo.getOrCreate("whatsapp", "cliente");
     conversation.currentProduct = "Vape anterior";
     conversation.cart = [{ sku:"SKU", quantity:2 }];
@@ -17,10 +17,10 @@ describe("ciclo de conversación", () => {
   it("reinicia automáticamente después del tiempo de inactividad", () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-09T10:00:00Z"));
-    const repo = new ConversationRepository(":memory:", 1440);
+    const repo = new ConversationRepository(":memory:", 720);
     const conversation = repo.getOrCreate("whatsapp", "cliente-idle");
     conversation.currentProduct = "Vape anterior"; repo.save(conversation);
-    vi.setSystemTime(new Date("2026-08-10T10:00:01Z"));
+    vi.setSystemTime(new Date("2026-08-09T22:00:01Z"));
     expect(repo.getOrCreate("whatsapp", "cliente-idle")).toMatchObject({ currentProduct:null, cart:[], lastMessages:[], state:"AI_ACTIVE" });
     vi.useRealTimers();
   });
