@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "audit:secrets": "node scripts/check-secrets.mjs",
+    "monitor:health": "node scripts/monitor-health.mjs",
     "verify": "npm run typecheck && npm test && npm run audit:secrets"
   },
   "dependencies": {

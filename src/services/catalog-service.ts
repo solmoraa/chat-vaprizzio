@@ -79,5 +79,10 @@ export class CatalogService {
     const unitPriceArs = Math.round(quote.selected.unitPriceUsd * exchangeRateArs);
     return { ...quote, exchangeRateArs, unitPriceArs, subtotalArs: unitPriceArs * quantity };
   }
+  async wholesaleAvailableStock(model: string) {
+    const match = await this.byModel(model);
+    if (!match.matches.length) return null;
+    return { model:`${match.matches[0]!.brand} ${match.matches[0]!.model}`, quantity:match.matches.reduce((total, product) => total + product.stock, 0) };
+  }
   business(key: string) { return this.provider.businessValue(key); }
 }

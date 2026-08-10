@@ -22,4 +22,16 @@ describe("notificaciones consecutivas", () => {
     expect(repo.getOrCreate("whatsapp", "repetido").pausedUntil).toBe(firstPause);
     vi.useRealTimers();
   });
+  it("suprime únicamente una alerta idéntica repetida dentro de 60 segundos", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-08-09T15:00:00Z"));
+    const repo = new ConversationRepository(":memory:"); const notify = vi.fn(); const takeover = new TakeoverService(repo, { notify });
+    takeover.recordCustomerMessage("whatsapp", "duplicado", "mismo mensaje");
+    await takeover.request("whatsapp", "duplicado", "mismo motivo");
+    await takeover.request("whatsapp", "duplicado", "mismo motivo");
+    expect(notify).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(60_000);
+    await takeover.request("whatsapp", "duplicado", "mismo motivo");
+    expect(notify).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
 });

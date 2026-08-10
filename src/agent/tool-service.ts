@@ -4,9 +4,10 @@ import type { SalesService } from "../services/sales-service.js";
 import type { TakeoverService } from "../services/takeover-service.js";
 import type { Channel } from "../domain/types.js";
 import { DeliveryService, buenosAiresHour } from "../services/delivery-service.js";
+import type { ConversationRepository } from "../database/conversation-repository.js";
 
 export class AgentToolService {
-  constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService()) {}
+  constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService(), readonly conversations?: ConversationRepository) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
@@ -159,6 +160,7 @@ export class AgentToolService {
         const paymentMethod = String(args.paymentMethod ?? "transferencia").toLowerCase();
         const deliveryMode = String(args.deliveryMode ?? "retiro").toLowerCase();
         const shippingCostArs = args.shippingCostArs == null ? null : Number(args.shippingCostArs);
+        const customerConfirmed = args.customerConfirmed === true;
         if (paymentMethod === "efectivo" && deliveryMode !== "retiro") return { action:"PAGO_INVALIDO", customerMessage:"En efectivo es únicamente retirando por el local. Para envíos trabajamos con transferencia." };
         const quote = await this.catalog.wholesaleTotalArs(model, quantity);
         if (!quote) return { action:"MODELO_O_CANTIDAD_INVALIDA", customerMessage:"Dame un segundo que lo consulto" };
@@ -170,12 +172,19 @@ export class AgentToolService {
         const totalArs = quote.subtotalArs + (shippingCostArs ?? 0);
         const money = new Intl.NumberFormat("es-AR").format(totalArs);
         const bank = { alias:"Fabri.moraa", cvu:"0000003100052918257843", holder:"Fabrizio Tomas Mora" };
+        const stock = await this.catalog.wholesaleAvailableStock(model);
+        const reservedByOthers = this.conversations?.reservedWholesaleByOthers(channel, customerId, stock?.model ?? model) ?? 0;
+        const availableToReserve = Math.max(0, (stock?.quantity ?? 0) - reservedByOthers);
+        if (!stock || availableToReserve < quantity) return { action:"STOCK_INSUFICIENTE", customerMessage:"Dame un segundo que reviso bien el stock disponible", available:availableToReserve };
+        const summary = { model:quote.model, quantity, unitPriceUsd:quote.selected!.unitPriceUsd, exchangeRateArs:quote.exchangeRateArs, unitPriceArs:quote.unitPriceArs, subtotalArs:quote.subtotalArs, shippingCostArs:shippingCostArs ?? 0, totalArs, paymentMethod, deliveryMode };
+        if (!customerConfirmed) return { action:"PEDIR_CONFIRMACION", customerMessage:`Te queda así: ${quantity} unidades de ${quote.model}, total $${money}${shippingCostArs ? " con envío incluido" : ""}. Confirmame si está bien y avanzamos`, summary };
+        const reservation = this.conversations?.reserveWholesale(channel, customerId, stock.model, quantity);
         if (deliveryMode === "retiro") {
           const result = await this.takeover.request(channel, customerId, `Venta mayorista para coordinar retiro - pago ${paymentMethod}`, quantity, [model, `Total: $${money}`]);
           const paymentText = paymentMethod === "efectivo" ? `El total en efectivo es $${money}.` : `El total es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}.`;
-          return { action:"COORDINAR_RETIRO", customerMessage:`${paymentText} Dame un segundo que coordinamos el día y horario de retiro`, ...quote, shippingCostArs:0, totalArs, bank:paymentMethod === "transferencia" ? bank : undefined, state:result.state, pausedUntil:result.pausedUntil };
+          return { action:"COORDINAR_RETIRO", customerMessage:`${paymentText} Dame un segundo que coordinamos el día y horario de retiro`, ...quote, shippingCostArs:0, totalArs, reservation, bank:paymentMethod === "transferencia" ? bank : undefined, state:result.state, pausedUntil:result.pausedUntil };
         }
-        return { action:"ESPERAR_COMPROBANTE", customerMessage:`El total con envío es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}. Cuando transfieras mandame el comprobante 🙌`, ...quote, shippingCostArs, totalArs, bank };
+        return { action:"ESPERAR_COMPROBANTE", customerMessage:`El total con envío es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}. Cuando transfieras mandame el comprobante 🙌`, ...quote, shippingCostArs, totalArs, reservation, bank };
       }
       case "reportar_comprobante_mayorista": {
         const model = String(args.model ?? "");
@@ -184,7 +193,7 @@ export class AgentToolService {
         const result = await this.takeover.request(channel, customerId, "Comprobante recibido de venta mayorista: preparar y coordinar envío", quantity, [model, deliveryMethod]);
         return { action:"PREPARAR_Y_ENVIAR", customerMessage:"Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago empezamos a preparar todo y coordinamos el envío. Para cualquier cosa estamos en contacto 😊", state:result.state, pausedUntil:result.pausedUntil };
       }
-      case "cerrar_conversacion": return { action: "CONVERSACION_CERRADA", customerMessage: "Gracias por escribirnos!", freshContextNextMessage: true, conversation: this.takeover.close(channel, customerId) };
+      case "cerrar_conversacion": { this.conversations?.releaseWholesaleReservation(channel, customerId); return { action: "CONVERSACION_CERRADA", customerMessage: "Gracias por escribirnos!", freshContextNextMessage: true, conversation: this.takeover.close(channel, customerId) }; }
       case "carrito_agregar": return { cart: this.cart.add(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_establecer": return { cart: this.cart.set(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_consultar": return { cart: this.cart.get(channel, customerId) };

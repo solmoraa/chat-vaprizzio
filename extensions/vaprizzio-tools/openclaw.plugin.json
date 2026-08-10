@@ -9,5 +9,5 @@
     "solicitar_intervencion_humana":{"optional":true}
   },
   "activation":{"onStartup":true},
-  "configSchema":{"type":"object","additionalProperties":false,"properties":{"baseUrl":{"type":"string","default":"http://127.0.0.1:3000"}}}
+  "configSchema":{"type":"object","additionalProperties":false,"properties":{"baseUrl":{"type":"string","default":"http://127.0.0.1:3000"},"apiToken":{"type":"string"}}}
 }

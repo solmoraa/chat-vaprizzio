@@ -1,0 +1,10 @@
+[Unit]
+Description=Verificar Vaprizzio cada minuto
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1min
+Unit=chat-vaprizzio-monitor.service
+
+[Install]
+WantedBy=timers.target

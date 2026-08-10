@@ -1,0 +1,8 @@
+[Unit]
+Description=Vaprizzio health monitor
+After=chat-vaprizzio-test.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/home/openclaw/apps/chat-vaprizzio
+ExecStart=/usr/bin/npm run monitor:health

@@ -5,7 +5,7 @@ import type { Channel, Conversation, ConversationState, NegotiatedPrice } from "
 
 export class ConversationRepository {
   private readonly db: DatabaseSync;
-  constructor(path: string, private readonly idleMinutes = 120) {
+  constructor(path: string, private readonly idleMinutes = 120, retentionDays = 30) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec(`CREATE TABLE IF NOT EXISTS conversations (
@@ -17,6 +17,16 @@ export class ConversationRepository {
     )`);
     const columns = this.db.prepare("PRAGMA table_info(conversations)").all() as Array<{ name: string }>;
     if (!columns.some(column => column.name === "paused_until")) this.db.exec("ALTER TABLE conversations ADD COLUMN paused_until TEXT");
+    this.db.exec(`CREATE TABLE IF NOT EXISTS wholesale_reservations (
+      id TEXT PRIMARY KEY, channel TEXT NOT NULL, customer_id TEXT NOT NULL, model TEXT NOT NULL,
+      quantity INTEGER NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
+    )`);
+    this.db.exec(`CREATE TABLE IF NOT EXISTS human_assignments (
+      conversation_id TEXT PRIMARY KEY, operator TEXT NOT NULL, assigned_at TEXT NOT NULL
+    )`);
+    const retentionCutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
+    this.db.prepare("DELETE FROM conversations WHERE last_activity < ?").run(retentionCutoff);
+    this.releaseExpiredWholesaleReservations();
   }
   id(channel: Channel, customerId: string) { return `${channel}:${customerId}`; }
   private fresh(channel: Channel, customerId: string): Conversation {
@@ -47,5 +57,25 @@ export class ConversationRepository {
   }
   setState(channel: Channel, customerId: string, state: ConversationState, pausedUntil?: string | null) { const c = this.getOrCreate(channel, customerId); c.state = state; if (pausedUntil !== undefined) c.pausedUntil = pausedUntil; c.lastActivity = new Date().toISOString(); this.save(c); return c; }
   setNegotiatedPrice(channel: Channel, customerId: string, price: NegotiatedPrice) { const c = this.getOrCreate(channel, customerId); c.negotiatedQuantity = price.quantity; c.negotiatedPrice = price; this.save(c); return c; }
+  reserveWholesale(channel: Channel, customerId: string, model: string, quantity: number, ttlMinutes = 30) {
+    this.releaseExpiredWholesaleReservations();
+    const id = `${channel}:${customerId}:${model.trim().toLowerCase()}`;
+    const now = new Date(); const expiresAt = new Date(now.getTime() + ttlMinutes * 60_000).toISOString();
+    this.db.prepare(`INSERT INTO wholesale_reservations (id,channel,customer_id,model,quantity,expires_at,created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET quantity=excluded.quantity,expires_at=excluded.expires_at`)
+      .run(id, channel, customerId, model, quantity, expiresAt, now.toISOString());
+    return { id, model, quantity, expiresAt };
+  }
+  reservedWholesaleByOthers(channel: Channel, customerId: string, model: string) {
+    this.releaseExpiredWholesaleReservations();
+    const row = this.db.prepare(`SELECT COALESCE(SUM(quantity),0) AS total FROM wholesale_reservations
+      WHERE lower(model)=lower(?) AND NOT (channel=? AND customer_id=?)`).get(model, channel, customerId) as { total: number };
+    return Number(row.total ?? 0);
+  }
+  releaseWholesaleReservation(channel: Channel, customerId: string) { this.db.prepare("DELETE FROM wholesale_reservations WHERE channel=? AND customer_id=?").run(channel, customerId); }
+  releaseExpiredWholesaleReservations(now = new Date()) { this.db.prepare("DELETE FROM wholesale_reservations WHERE expires_at <= ?").run(now.toISOString()); }
+  assignHuman(channel: Channel, customerId: string, operator: string) { const conversationId=this.id(channel, customerId); this.db.prepare(`INSERT INTO human_assignments (conversation_id,operator,assigned_at) VALUES (?, ?, ?) ON CONFLICT(conversation_id) DO UPDATE SET operator=excluded.operator,assigned_at=excluded.assigned_at`).run(conversationId, operator, new Date().toISOString()); return { conversationId, operator }; }
+  humanAssignment(channel: Channel, customerId: string) { return this.db.prepare("SELECT operator,assigned_at FROM human_assignments WHERE conversation_id=?").get(this.id(channel, customerId)) ?? null; }
+  clearHumanAssignment(channel: Channel, customerId: string) { this.db.prepare("DELETE FROM human_assignments WHERE conversation_id=?").run(this.id(channel, customerId)); }
   private map(r: Record<string, unknown>): Conversation { return { id: String(r.id), channel: String(r.channel) as Channel, customerId: String(r.customer_id), state: String(r.state) as ConversationState, currentProduct: r.current_product as string | null, currentFlavor: r.current_flavor as string | null, cart: JSON.parse(String(r.cart)), negotiatedQuantity: r.negotiated_quantity == null ? null : Number(r.negotiated_quantity), negotiatedPrice: r.negotiated_price ? JSON.parse(String(r.negotiated_price)) : null, customerCity: r.customer_city as string | null, lastMessages: JSON.parse(String(r.last_messages)), lastActivity: String(r.last_activity), pausedUntil: r.paused_until == null ? null : String(r.paused_until) }; }
 }

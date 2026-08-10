@@ -5,6 +5,7 @@ const schema = z.object({
   APP_ENV: z.enum(["test", "production"]).default("test"),
   ALLOW_PRODUCTION: z.enum(["true", "false"]).default("false").transform(v => v === "true"),
   PORT: z.coerce.number().int().positive().default(3000),
+  HOST: z.string().default("127.0.0.1"),
   LOG_LEVEL: z.string().default("info"),
   DATABASE_PATH: z.string().default("./data/vaprizzio-test.sqlite"),
   CATALOG_PROVIDER: z.enum(["fixture", "sheets"]).default("fixture"),
@@ -24,8 +25,11 @@ const schema = z.object({
   HUMAN_NOTIFICATION_CHAT_ID: z.string().default(""),
   TELEGRAM_BOT_TOKEN: z.string().default(""),
   INTERNAL_WEBHOOK_SECRET: z.string().default(""),
+  TOOL_API_TOKEN: z.string().default(""),
+  TOOL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
   DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(10000),
   CONVERSATION_IDLE_MINUTES: z.coerce.number().int().positive().default(120),
+  CONVERSATION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SALE_CONFIRMATION_MODE: z.enum(["disabled", "explicit_internal_command"]).default("disabled")
 });
 
@@ -38,6 +42,9 @@ export function loadConfig(source: NodeJS.ProcessEnv = process.env): AppConfig {
   }
   if (config.APP_ENV === "production" && config.CATALOG_PROVIDER !== "sheets") {
     throw new Error("PRODUCTION_BLOCKED: producción requiere CATALOG_PROVIDER=sheets");
+  }
+  if (config.APP_ENV === "production" && (config.TOOL_API_TOKEN.length < 32 || config.INTERNAL_WEBHOOK_SECRET.length < 32 || config.OPENCLAW_HOOK_TOKEN.length < 32)) {
+    throw new Error("PRODUCTION_BLOCKED: los tokens internos deben tener al menos 32 caracteres");
   }
   return config;
 }

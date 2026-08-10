@@ -1,6 +1,7 @@
 import { definePluginEntry } from "openclaw/plugin-sdk/plugin-entry";
 const string = (extra = {}) => ({ type: "string", ...extra });
 const integer = (extra = {}) => ({ type: "integer", ...extra });
+const boolean = () => ({ type: "boolean" });
 const object = (properties) => ({ type: "object", additionalProperties: false, properties, required: Object.keys(properties) });
 const identity = { channel: string({ enum: ["whatsapp", "instagram"] }), customerId: string({ minLength: 1 }) };
 const schemas = {
@@ -24,7 +25,7 @@ const schemas = {
     reportar_pedido_inmediato_app: { type: "object", additionalProperties: false, properties: { ...identity, product: string(), address: string() }, required: ["channel", "customerId", "product", "address"] },
     consultar_negocio: object({ ...identity, key: string() }), consultar_mayorista: { type: "object", additionalProperties: false, properties: { ...identity, model: string(), quantity: integer({ minimum: 1 }) }, required: ["channel", "customerId", "model"] },
     listar_mayorista: object({}),
-    preparar_venta_mayorista: { type: "object", additionalProperties: false, properties: { ...identity, model: string(), quantity: integer({ minimum: 10 }), paymentMethod: string({ enum: ["transferencia", "efectivo"] }), deliveryMode: string({ enum: ["retiro", "envio"] }), shippingCostArs: integer({ minimum: 0 }) }, required: ["channel", "customerId", "model", "quantity", "paymentMethod", "deliveryMode"] },
+    preparar_venta_mayorista: { type: "object", additionalProperties: false, properties: { ...identity, model: string(), quantity: integer({ minimum: 10 }), paymentMethod: string({ enum: ["transferencia", "efectivo"] }), deliveryMode: string({ enum: ["retiro", "envio"] }), shippingCostArs: integer({ minimum: 0 }), customerConfirmed: boolean() }, required: ["channel", "customerId", "model", "quantity", "paymentMethod", "deliveryMode", "customerConfirmed"] },
     reportar_comprobante_mayorista: { type: "object", additionalProperties: false, properties: { ...identity, model: string(), quantity: integer({ minimum: 10 }), deliveryMethod: string() }, required: ["channel", "customerId", "model", "quantity", "deliveryMethod"] },
     carrito_agregar: object({ ...identity, sku: string(), quantity: integer({ minimum: 1 }) }), carrito_establecer: object({ ...identity, sku: string(), quantity: integer({ minimum: 0 }) }),
     carrito_consultar: object(identity), resumir_pedido: object(identity), solicitar_intervencion_humana: object({ ...identity, reason: string() })
@@ -44,7 +45,7 @@ const descriptions = {
 export default definePluginEntry({ id: "vaprizzio-tools", name: "Vaprizzio Commercial Tools", description: "Herramientas comerciales verificadas", register(api) {
         for (const [name, parameters] of Object.entries(schemas))
             api.registerTool({ name, description: descriptions[name] ?? name, parameters,
-                async execute(_id, params) { const configured = api.pluginConfig?.baseUrl; const baseUrl = configured ?? "http://127.0.0.1:3000"; const response = await fetch(`${baseUrl}/api/tools/${name}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(params) }); const details = await response.json(); if (!response.ok)
+                async execute(_id, params) { const config = api.pluginConfig; const baseUrl = config?.baseUrl ?? "http://127.0.0.1:3000"; const response = await fetch(`${baseUrl}/api/tools/${name}`, { method: "POST", headers: { "content-type": "application/json", ...(config?.apiToken ? { authorization: `Bearer ${config.apiToken}` } : {}) }, body: JSON.stringify(params) }); const details = await response.json(); if (!response.ok)
                     throw new Error(`VAPRIZZIO_TOOL_ERROR:${response.status}`); return { content: [{ type: "text", text: JSON.stringify(details) }], details }; }
             }, { optional: true });
     } });
