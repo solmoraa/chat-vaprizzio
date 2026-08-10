@@ -13,7 +13,11 @@ export class AgentToolService {
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
     const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
-    if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && name !== "iniciar_nuevo_tema" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
+    const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_entrega", "consultar_negocio"]);
+    if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
+      if (newTopicReadTools.has(name)) this.takeover.resume(channel, customerId);
+      else if (name !== "get_conversation_state" && name !== "iniciar_nuevo_tema" && !alertTools.has(name)) return { blocked:true, reason:"AI_NOT_ACTIVE", customerMessage:"NO_REPLY", instruction:"No expliques la pausa ni prometas intervención. No envíes ningún mensaje al cliente." };
+    }
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
       case "buscar_modelo": return this.catalog.byModel(String(args.query));

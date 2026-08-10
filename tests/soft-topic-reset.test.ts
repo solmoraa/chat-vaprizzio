@@ -38,4 +38,17 @@ describe("reinicio suave de tema", () => {
     expect(result).toMatchObject({ action:"MANTENER_ATENCION_HUMANA", customerMessage:"NO_REPLY", state:"WAITING_HUMAN" });
     expect(takeover.canAiReply("whatsapp", "coordinando")).toBe(false);
   });
+
+  it("reactiva automáticamente una consulta nueva de stock", async () => {
+    const repo = new ConversationRepository(":memory:", 720);
+    const takeover = new TakeoverService(repo, { notify:vi.fn() });
+    const catalog = { byFlavor:vi.fn().mockResolvedValue({ matches:[] }) };
+    const tools = new AgentToolService(catalog as never, {} as never, takeover, {} as never, undefined, repo);
+    repo.setState("whatsapp", "nuevo-stock", "WAITING_HUMAN", new Date(Date.now() + 3_600_000).toISOString());
+
+    await tools.execute("buscar_sabor", { channel:"whatsapp", customerId:"nuevo-stock", query:"Watermelon" });
+
+    expect(catalog.byFlavor).toHaveBeenCalledWith("Watermelon");
+    expect(takeover.canAiReply("whatsapp", "nuevo-stock")).toBe(true);
+  });
 });
