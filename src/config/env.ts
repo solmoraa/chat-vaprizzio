@@ -27,7 +27,7 @@ const schema = z.object({
   INTERNAL_WEBHOOK_SECRET: z.string().default(""),
   TOOL_API_TOKEN: z.string().default(""),
   TOOL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
-  DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(10000),
+  DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(6000),
   CONVERSATION_IDLE_MINUTES: z.coerce.number().int().positive().default(1440),
   CONVERSATION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SALE_CONFIRMATION_MODE: z.enum(["disabled", "explicit_internal_command"]).default("disabled")
