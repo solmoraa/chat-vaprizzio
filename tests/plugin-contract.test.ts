@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import manifest from "../extensions/vaprizzio-tools/openclaw.plugin.json" with { type: "json" };
+import { readFileSync } from "node:fs";
 
 describe("contrato del plugin OpenClaw", () => {
   it("declara todas las herramientas comerciales instaladas", () => {
@@ -24,5 +25,12 @@ describe("contrato del plugin OpenClaw", () => {
       ,"reportar_comprobante_mayorista"
     ]));
     for (const tool of manifest.contracts.tools) expect(manifest.toolMetadata).toHaveProperty(tool);
+  });
+
+  it("impide prometer una consulta sin haber enviado una alerta", () => {
+    const source = readFileSync(new URL("../extensions/vaprizzio-tools/index.ts", import.meta.url), "utf8");
+    expect(source).toContain('api.on("before_agent_finalize"');
+    expect(source).toContain("vaprizzio-missing-alert");
+    expect(source).toContain("solicitar_intervencion_humana");
   });
 });

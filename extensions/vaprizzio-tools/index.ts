@@ -67,6 +67,27 @@ const startsFreshTopic = (value: unknown) => {
 };
 
 export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commercial Tools", description:"Herramientas comerciales verificadas", register(api) {
+  const alertedRuns = new Set<string>();
+  api.on("after_tool_call", async (event: any) => {
+    if (event?.runId && alertToolNames.includes(String(event.toolName)) && !event.error) alertedRuns.add(String(event.runId));
+  });
+  api.on("before_agent_finalize", async (event: any, ctx: any) => {
+    if (ctx?.agentId !== "vaprizzio-sales-test") return;
+    const text = String(event?.lastAssistantMessage ?? "");
+    const promisesConsultation = /\b(dame|dejame|aguardame|esperame)\b[\s\S]{0,45}\b(segundo|minuto|momento|consult|revis|averigu)/i.test(text);
+    const runId = String(event?.runId ?? "");
+    if (!promisesConsultation || (runId && alertedRuns.has(runId))) return;
+    return {
+      action:"revise",
+      reason:"La respuesta promete consultar pero no se ejecutó ninguna herramienta de alerta.",
+      retry:{
+        instruction:"Antes de responder, ejecutá obligatoriamente la herramienta específica de alerta. Si es una foto de un producto que no podés identificar o una consulta comercial desconocida, ejecutá solicitar_intervencion_humana con triggerMessage y un motivo concreto. Solo después devolvé el customerMessage de la herramienta. Nunca prometas consultar sin haber enviado la alerta.",
+        idempotencyKey:`vaprizzio-missing-alert:${runId || event?.turnId || "turn"}`,
+        maxAttempts:1
+      }
+    };
+  }, { priority:100, timeoutMs:10000 });
+  api.on("agent_end", async (event: any) => { if (event?.runId) alertedRuns.delete(String(event.runId)); });
   api.on("before_prompt_build", async (event: any, ctx: any) => {
     if (ctx?.agentId !== "vaprizzio-sales-test" || !startsFreshTopic(event?.prompt)) return;
     const channel = String(ctx?.channel ?? ctx?.messageProvider ?? "");
