@@ -20,7 +20,7 @@ describe("comprobantes de compras web", () => {
     expect(notify).toHaveBeenCalledOnce();
     expect(result).toMatchObject({ action:"VERIFICAR_PAGO", state:"WAITING_HUMAN" });
     expect(String((result as {customerMessage:string}).customerMessage)).toContain("Gracias por mandarnos el comprobante!");
-    expect(String((result as {customerMessage:string}).customerMessage)).toContain("💚🙌");
+    expect(String((result as {customerMessage:string}).customerMessage)).toContain("💜🙌");
     expect(String((result as {customerMessage:string}).customerMessage)).toContain(expectedText);
     expect(String((result as {customerMessage:string}).customerMessage)).toContain("Para cualquier cosa estamos en contacto");
     expect(takeover.canAiReply("whatsapp", `comprobante-${deliveryMode}`)).toBe(false);
