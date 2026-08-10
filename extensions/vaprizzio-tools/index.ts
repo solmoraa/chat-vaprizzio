@@ -8,6 +8,7 @@ const identity = { channel: string({ enum:["whatsapp","instagram"] }), customerI
 const schemas: Record<string, object> = {
   buscar_sabor:object({...identity,query:string()}), buscar_modelo:object({...identity,query:string()}),
   buscar_producto:object({...identity,model:string(),flavor:string()}), buscar_por_perfil:object({...identity,profile:string()}),
+  comparar_modelos:object({...identity,models:{type:"array",minItems:2,maxItems:5,items:string()}}),
   listar_catalogo:object({}),
   consultar_stock:object({...identity,sku:string()}), consultar_precio:object({...identity,sku:string()}),
   consultar_entrega:{type:"object",additionalProperties:false,properties:{...identity,method:string({enum:["retiro","flex","nacional"]}),locality:string()},required:["channel","customerId","method"]},
@@ -42,6 +43,7 @@ for (const name of alertToolNames) {
   if (schema?.properties) schema.properties.triggerMessage = string({ description:"Texto exacto del último mensaje del cliente que dispara esta acción" });
 }
 const descriptions: Record<string, string> = {
+  comparar_modelos:"Compara modelos o marcas usando exclusivamente las descripciones verificadas de sus fichas públicas de Tiendanube. Nunca inventes diferencias si falta una descripción.",
   reportar_llegada_retiro:"OBLIGATORIA cuando un cliente llega o está por llegar para retirar una compra. Notifica a Telegram como retiro de venta, nunca como cambio.",
   reportar_recordatorio_afuera:"OBLIGATORIA si un cliente que ya avisó que está afuera vuelve a insistir o apura. Reenvía siempre una alerta mucho más urgente a Telegram.",
   reportar_consulta_post_comprobante:"OBLIGATORIA para consultas posteriores a un comprobante. La primera puede responder y alertar; las siguientes esperan al humano sin responder ni repetir alertas.",

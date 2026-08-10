@@ -32,6 +32,24 @@ export class CatalogService {
     return { matches: best == null ? [] : scored.filter(x => best - x.score < 0.08).map(x => x.p), ambiguous: false };
   }
   async specific(model: string, flavor: string) { const m = await this.byModel(model); return m.matches.filter(p => similarity(p.flavor, flavor) >= 0.72); }
+  async compareModels(queries: string[]) {
+    const results = [] as Array<{ brand:string; model:string; description:string | null; productUrl?:string; source:"tiendanube" | "unavailable" }>;
+    for (const query of queries) {
+      const match = await this.byModel(query);
+      const product = match.matches[0];
+      if (!product) { results.push({ brand:"", model:query, description:null, source:"unavailable" }); continue; }
+      const productUrl = product.productUrl;
+      let description:string | null = null;
+      if (productUrl) {
+        try {
+          const response = await fetch(productUrl, { signal:AbortSignal.timeout(8_000), headers:{ accept:"text/html" } });
+          if (response.ok) description = extractProductDescription(await response.text());
+        } catch { description = null; }
+      }
+      results.push({ brand:product.brand, model:product.model, description, ...(productUrl ? { productUrl } : {}), source:description ? "tiendanube" : "unavailable" });
+    }
+    return results;
+  }
   async byProfile(profile: string, limit = 3) {
     const products = await this.live(); const flavors = await this.provider.flavors(); const q = normalize(profile);
     return products.map(p => { const f = flavors.find(x => normalize(x.flavor) === normalize(p.flavor)); const score = p.profile.some(x => normalize(x).includes(q)) || normalize(f?.type ?? "").includes(q) ? 2 : Math.max(similarity(p.description, q), similarity(f?.description ?? "", q)); return { p, score }; }).filter(x => x.score >= 0.45).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.p);
@@ -93,3 +111,28 @@ export class CatalogService {
   }
   business(key: string) { return this.provider.businessValue(key); }
 }
+
+const decodeHtml = (value:string) => value
+  .replace(/<[^>]+>/g, " ")
+  .replace(/&nbsp;|&#160;/gi, " ").replace(/&amp;/gi, "&").replace(/&quot;|&#34;/gi, '"')
+  .replace(/&#39;|&apos;/gi, "'").replace(/&lt;/gi, "<").replace(/&gt;/gi, ">")
+  .replace(/&#(\d+);/g, (_match, code:string) => String.fromCodePoint(Number(code)))
+  .replace(/\s+/g, " ").trim();
+
+export const extractProductDescription = (html:string):string | null => {
+  const metaTags = html.match(/<meta\b[^>]*>/gi) ?? [];
+  for (const tag of metaTags) {
+    if (!/(?:property|name)=["'](?:og:description|description)["']/i.test(tag)) continue;
+    const content = tag.match(/content=["']([\s\S]*?)["']/i)?.[1];
+    if (content && decodeHtml(content).length >= 20) return decodeHtml(content);
+  }
+  for (const script of html.matchAll(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)) {
+    try {
+      const parsed = JSON.parse(script[1] ?? "null");
+      const entries = Array.isArray(parsed) ? parsed : parsed?.["@graph"] ?? [parsed];
+      const product = entries.find((entry:Record<string, unknown>) => String(entry?.["@type"] ?? "").toLowerCase() === "product");
+      if (typeof product?.description === "string" && decodeHtml(product.description).length >= 20) return decodeHtml(product.description);
+    } catch { /* Ignorar JSON-LD inválido y probar la siguiente fuente. */ }
+  }
+  return null;
+};

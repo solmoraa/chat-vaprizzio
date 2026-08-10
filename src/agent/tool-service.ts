@@ -13,7 +13,7 @@ export class AgentToolService {
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
     const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
-    const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_negocio"]);
+    const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "comparar_modelos", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_negocio"]);
     const silentWhileHumanCoordinates = new Set(["consultar_entrega", "solicitar_envio_app", "reportar_consulta_post_comprobante"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
       if (silentWhileHumanCoordinates.has(name)) return { blocked:true, reason:"HUMAN_COORDINATION_ACTIVE", customerMessage:"NO_REPLY", notificationSent:false, instruction:"Una persona ya está atendiendo esta operación. No respondas ni envíes otra alerta." };
@@ -25,6 +25,7 @@ export class AgentToolService {
       case "buscar_modelo": return this.catalog.byModel(String(args.query));
       case "buscar_producto": return this.catalog.specific(String(args.model), String(args.flavor));
       case "buscar_por_perfil": return this.catalog.byProfile(String(args.profile));
+      case "comparar_modelos": return { comparisons:await this.catalog.compareModels(Array.isArray(args.models) ? args.models.map(String) : []), verifiedSource:"TIENDANUBE_PRODUCT_DESCRIPTION" };
       case "listar_catalogo": return { models: await this.catalog.priceList(), onlyAvailable: true };
       case "consultar_stock": return this.catalog.stock(String(args.sku));
       case "consultar_precio": return { price: await this.catalog.price(String(args.sku)) };
