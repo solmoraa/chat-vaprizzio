@@ -12,7 +12,7 @@ export class AgentToolService {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
-    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_entrega", "consultar_negocio"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
       if (newTopicReadTools.has(name)) this.takeover.resume(channel, customerId);
@@ -91,6 +91,14 @@ export class AgentToolService {
         const isOutside = /afuera|en la puerta|llegu[eé]|ya estoy/i.test(status);
         const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "LLEGANDO"} PARA RETIRAR UNA COMPRA 🚨 Estado: ${status}`, undefined, product ? [product] : undefined);
         return { action:"AVISADO_RETIRO", customerMessage:isOutside ? "Ya salgo!" : "Dale, te esperamos", state:result.state, pausedUntil:result.pausedUntil };
+      }
+      case "reportar_recordatorio_afuera": {
+        const context = String(args.context ?? "retiro").toLowerCase();
+        const product = String(args.product ?? "");
+        const label = context === "cambio" ? "POR UN CAMBIO" : "PARA RETIRAR UNA COMPRA";
+        const reason = `🚨🚨🚨⚠️⚠️ CLIENTE SIGUE AFUERA ${label} — SALIR URGENTE ⚠️⚠️🚨🚨🚨`;
+        const result = await this.takeover.request(channel, customerId, reason, undefined, product ? [product] : undefined, true);
+        return { action:"RECORDATORIO_URGENTE", customerMessage:"Ya salgo! Disculpá la demora", state:result.state, pausedUntil:result.pausedUntil };
       }
       case "coordinar_visita_local": {
         if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/" };

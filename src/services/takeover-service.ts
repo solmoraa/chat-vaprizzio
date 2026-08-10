@@ -14,13 +14,13 @@ export class TakeoverService {
     }
     return false;
   }
-  async request(channel: Channel, customerId: string, reason: string, quantity?: number, products?: string[]) {
+  async request(channel: Channel, customerId: string, reason: string, quantity?: number, products?: string[], forceNotification = false) {
     const current = this.repo.getOrCreate(channel, customerId);
     const existingPauseIsActive = current.state !== "AI_ACTIVE" && !!current.pausedUntil && Date.now() < new Date(current.pausedUntil).getTime();
     const pausedUntil = existingPauseIsActive ? current.pausedUntil : new Date(Date.now() + 60 * 60 * 1000).toISOString();
     const c = this.repo.setState(channel, customerId, "WAITING_HUMAN", pausedUntil);
     const latest = c.lastMessages.at(-1) ?? ""; const alertKey = `${channel}|${customerId}|${reason}|${latest}`; const lastSent = this.recentAlerts.get(alertKey) ?? 0;
-    if (Date.now() - lastSent >= 60_000) { await this.notifier.notify({ channel, customerId, messages: c.lastMessages.slice(-5), reason, ...(quantity == null ? {} : { quantity }), ...(products ? { products } : {}) }); this.recentAlerts.set(alertKey, Date.now()); }
+    if (forceNotification || Date.now() - lastSent >= 60_000) { await this.notifier.notify({ channel, customerId, messages: c.lastMessages.slice(-5), reason, ...(quantity == null ? {} : { quantity }), ...(products ? { products } : {}) }); this.recentAlerts.set(alertKey, Date.now()); }
     return c;
   }
   humanMessage(channel: Channel, customerId: string, text: string) {
