@@ -51,4 +51,15 @@ describe("reinicio suave de tema", () => {
     expect(catalog.byFlavor).toHaveBeenCalledWith("Watermelon");
     expect(takeover.canAiReply("whatsapp", "nuevo-stock")).toBe(true);
   });
+  it("trata saludo más pregunta general de envíos como tema nuevo", async () => {
+    const repo = new ConversationRepository(":memory:", 720);
+    const takeover = new TakeoverService(repo, { notify:vi.fn() });
+    const tools = new AgentToolService({} as never, {} as never, takeover, {} as never, undefined, repo);
+    repo.setState("whatsapp", "nuevo-envio", "WAITING_HUMAN", new Date(Date.now() + 3_600_000).toISOString());
+    const result = await tools.execute("iniciar_nuevo_tema", {
+      channel:"whatsapp", customerId:"nuevo-envio", triggerMessage:"hola! cómo es el tema de los envíos?"
+    });
+    expect(result).toMatchObject({ action:"NUEVO_TEMA", state:"AI_ACTIVE", contextPreserved:true });
+    expect(takeover.canAiReply("whatsapp", "nuevo-envio")).toBe(true);
+  });
 });
