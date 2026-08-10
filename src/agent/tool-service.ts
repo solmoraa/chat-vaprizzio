@@ -111,7 +111,7 @@ export class AgentToolService {
         return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_comprobante_web": {
-        const deliveryMode = String(args.deliveryMode ?? "envio").toLowerCase();
+        const deliveryMode = String(args.deliveryMode ?? "sin_definir").toLowerCase();
         const paymentTiming = String(args.paymentTiming ?? "antes_envio").toLowerCase();
         const orderReference = String(args.orderReference ?? "");
         const base = paymentTiming === "vehiculo_enviado"
@@ -119,14 +119,16 @@ export class AgentToolService {
           : paymentTiming === "al_recibir"
             ? "Gracias por mandarnos el comprobante! 💚🙌 Recibimos el pago acordado al llegar el pedido. Apenas lo verifiquemos te confirmamos."
             : "Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago, confirmamos el envío y empezamos a preparar tu pedido.";
-        const customerMessage = deliveryMode === "uber_didi"
+        const customerMessage = deliveryMode === "sin_definir"
+          ? "Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a poner en contacto para coordinar la entrega. Para cualquier cosa estamos en contacto 😊"
+          : deliveryMode === "uber_didi"
           ? paymentTiming === "antes_envio"
             ? `${base} Nos vamos a comunicar para avisarte cuando salga el vehículo 🚗 Para cualquier cosa estamos en contacto.`
             : `${base} Para cualquier cosa estamos en contacto 😊`
           : deliveryMode === "punto_retiro"
             ? "Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el punto de retiro. Para cualquier cosa estamos en contacto 😊"
             : `${base} Para cualquier cosa estamos en contacto 😊`;
-        const modeLabel = deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
+        const modeLabel = deliveryMode === "sin_definir" ? "entrega sin definir" : deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
         const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
         return { action: "VERIFICAR_PAGO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }

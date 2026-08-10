@@ -5,6 +5,7 @@ import { TakeoverService } from "../src/services/takeover-service.js";
 
 describe("comprobantes de compras web", () => {
   it.each([
+    ["sin_definir", "poner en contacto para coordinar la entrega"],
     ["envio", "empezamos a preparar tu pedido"],
     ["uber_didi", "cuando salga el vehículo"],
     ["punto_retiro", "coordinar el punto de retiro"]
