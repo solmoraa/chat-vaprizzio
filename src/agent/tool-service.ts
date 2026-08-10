@@ -12,7 +12,7 @@ export class AgentToolService {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
-    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
@@ -143,6 +143,11 @@ export class AgentToolService {
         if (!product || !address) return { action:"PEDIR_DATOS", requires:[...(!product ? ["product"] : []), ...(!address ? ["address"] : [])], customerMessage:"Decime qué vape querés y pasame la dirección" };
         const result = await this.takeover.request(channel, customerId, "Pedido inmediato confirmado para enviar por Uber o Didi", undefined, [product, `Dirección: ${address}`]);
         return { action:"COORDINAR_ENVIO_APP", customerMessage:"Dale, dame un segundo que coordinamos el envío por Uber o Didi", state:result.state, pausedUntil:result.pausedUntil };
+      }
+      case "reportar_consulta_fuera_horario": {
+        if (buenosAiresHour() >= 23) return { action:"PEDIDO_MANANA", customerMessage:"Buenas! La tienda está cerrada. Nuestro horario es de 10 a 19 hs. Si querés hacer un pedido para recibirlo mañana, podés hacerlo desde nuestra web:\nhttps://www.vaprizzio.com/productos/" };
+        const result = await this.takeover.request(channel, customerId, "Posible pedido o pedido fuera del horario de atención", undefined, triggerMessage ? [triggerMessage] : undefined);
+        return { action:"ATENCION_HUMANA", customerMessage:"Buenas! Cómo estás? La tienda está cerrada, pero dejame que consulto a los chicos. Uno de ellos te va a responder. Muchas gracias por escribirnos!", state:result.state, pausedUntil:result.pausedUntil };
       }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
