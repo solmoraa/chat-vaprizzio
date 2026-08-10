@@ -13,6 +13,7 @@ describe("contrato del plugin OpenClaw", () => {
       ,"coordinar_visita_local"
       ,"evaluar_producto_fallado"
       ,"cerrar_conversacion"
+      ,"iniciar_nuevo_tema"
       ,"reportar_comprobante_web"
       ,"reportar_solicitud_media"
       ,"reportar_llegada_sin_producto"

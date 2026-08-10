@@ -13,7 +13,7 @@ export class AgentToolService {
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
     const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
-    if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
+    if (channel && customerId && !this.takeover.canAiReply(channel, customerId) && name !== "get_conversation_state" && name !== "iniciar_nuevo_tema" && !alertTools.has(name)) return { blocked: true, reason: "AI_NOT_ACTIVE" };
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
       case "buscar_modelo": return this.catalog.byModel(String(args.query));
@@ -201,6 +201,10 @@ export class AgentToolService {
         return { action:"PREPARAR_Y_ENVIAR", customerMessage:"Gracias por mandarnos el comprobante! 💚🙌 Apenas confirmemos el pago empezamos a preparar todo y coordinamos el envío. Para cualquier cosa estamos en contacto 😊", state:result.state, pausedUntil:result.pausedUntil };
       }
       case "cerrar_conversacion": { this.conversations?.releaseWholesaleReservation(channel, customerId); return { action: "CONVERSACION_CERRADA", customerMessage: "Gracias por escribirnos!", freshContextNextMessage: true, conversation: this.takeover.close(channel, customerId) }; }
+      case "iniciar_nuevo_tema": {
+        const resumed = this.takeover.resume(channel, customerId);
+        return { action:"NUEVO_TEMA", state:resumed.state, contextPreserved:true, instruction:"Respondé la consulta actual sin mencionar el tema anterior. Usá el historial solo si el cliente lo relaciona explícitamente." };
+      }
       case "carrito_agregar": return { cart: this.cart.add(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_establecer": return { cart: this.cart.set(channel, customerId, String(args.sku), Number(args.quantity)) };
       case "carrito_consultar": return { cart: this.cart.get(channel, customerId) };
