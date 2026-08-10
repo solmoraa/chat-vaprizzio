@@ -43,9 +43,13 @@ describe("intención general de comprar un vape", () => {
 
   it("lista dinámicamente todos los modelos de una marca", () => {
     for (const instructions of [agents, skill]) {
-      expect(instructions).toMatch(/(todos los modelos distintos|cada modelo distinto).+marca.+stock/is);
+      expect(instructions).toMatch(/agrupá por modelo/is);
       expect(instructions).toContain("Google Sheets");
       expect(instructions).toContain("https://www.vaprizzio.com/productos/");
+      expect(instructions).toContain("tenemos estos modelos disponibles");
+      expect(instructions).toContain("[MODELO");
+      expect(instructions).toMatch(/(nunca|prohibido).+Dame un segundo que lo consulto/is);
+      expect(instructions).toMatch(/(nunca|prohibido).+alerta de Telegram/is);
     }
   });
 });
