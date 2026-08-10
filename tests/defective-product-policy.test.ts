@@ -39,6 +39,27 @@ describe("plazo para productos fallados", () => {
     expect(notify).toHaveBeenCalledOnce();
   });
 
+  it("un saludo con un reclamo nuevo reactiva aunque el caso anterior estuviera pausado", async () => {
+    const { notify, takeover, tools } = setup();
+    await takeover.request("whatsapp", "nuevo-reclamo", "Cliente afuera por una compra");
+    notify.mockClear();
+
+    const result = await tools.execute("evaluar_producto_fallado", {
+      channel:"whatsapp",
+      customerId:"nuevo-reclamo",
+      daysSincePurchase:2,
+      problem:"Anda mal",
+      triggerMessage:"hola! compre hace dos dias y anda mal el vape"
+    });
+
+    expect(result).toMatchObject({
+      action:"CONSULTAR",
+      eligible:true,
+      customerMessage:"Dame un minuto que lo consulto"
+    });
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
   it("rechaza cordialmente sin notificar si pasaron más de 2 días", async () => {
     const { notify, takeover, tools } = setup();
     const result = await tools.execute("evaluar_producto_fallado", { channel:"whatsapp", customerId:"fuera-plazo", daysSincePurchase:3 });

@@ -6,12 +6,21 @@ import type { Channel } from "../domain/types.js";
 import { DeliveryService, buenosAiresHour } from "../services/delivery-service.js";
 import type { ConversationRepository } from "../database/conversation-repository.js";
 
+const opensFreshTopic = (value: string) => {
+  const text = value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9!? ]/g, " ").replace(/\s+/g, " ").trim();
+  const greeting = /^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)(\b|[!?])/.test(text);
+  const continuation = /\b(mi pedido|mi comprobante|ese envio|el envio que|el uber que|el didi que|lo de antes|lo anterior|seguimos con|sigo con)\b/.test(text);
+  return greeting && !continuation;
+};
+
 export class AgentToolService {
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService(), readonly conversations?: ConversationRepository) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
+    if (channel && customerId && triggerMessage && opensFreshTopic(triggerMessage)) this.takeover.resume(channel, customerId);
     const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "comparar_modelos", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_negocio"]);
     const silentWhileHumanCoordinates = new Set(["consultar_entrega", "solicitar_envio_app", "reportar_consulta_post_comprobante", "evaluar_producto_fallado", "reportar_cambio_envio"]);
