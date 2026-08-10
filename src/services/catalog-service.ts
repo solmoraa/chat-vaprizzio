@@ -20,7 +20,14 @@ export class CatalogService {
   }
   async byModel(query: string): Promise<MatchResult> {
     const products = await this.live();
-    const scored = products.map(p => ({ p, score: Math.max(similarity(p.model, query), similarity(`${p.brand} ${p.model}`, query)) })).filter(x => x.score >= 0.72).sort((a, b) => b.score - a.score);
+    const ignored = new Set(["tenes", "tienen", "hay", "el", "la", "los", "las", "un", "una", "vape", "vapes", "vaporizador", "vaporizadores", "por", "casualidad"]);
+    const queryTokens = normalize(query).split(" ").filter(token => token.length >= 2 && !ignored.has(token));
+    const scored = products.map(p => {
+      const target = `${p.brand} ${p.model}`;
+      const targetTokens = new Set(normalize(target).split(" "));
+      const tokenCoverage = queryTokens.length > 0 && queryTokens.every(token => targetTokens.has(token)) ? 0.96 : 0;
+      return { p, score: Math.max(similarity(p.model, query), similarity(target, query), tokenCoverage) };
+    }).filter(x => x.score >= 0.72).sort((a, b) => b.score - a.score);
     const best = scored[0]?.score;
     return { matches: best == null ? [] : scored.filter(x => best - x.score < 0.08).map(x => x.p), ambiguous: false };
   }

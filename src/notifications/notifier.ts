@@ -10,14 +10,25 @@ export class TelegramNotifier implements HumanNotifier {
       .filter(Boolean);
   }
 
+  private async send(chatId: string, text: string) {
+    let lastError: Error | undefined;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text }) });
+        if (res.ok) return;
+        lastError = new Error(`TELEGRAM_ERROR:${res.status}:chat=${chatId}:attempt=${attempt}`);
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error("TELEGRAM_NETWORK_ERROR");
+      }
+    }
+    throw lastError ?? new Error(`TELEGRAM_DELIVERY_FAILED:chat=${chatId}`);
+  }
+
   async notify(v: HumanNotification) {
     if (!this.token || this.chatIds.length === 0) throw new Error("TELEGRAM_NOT_CONFIGURED");
     const latestMessage = (v.messages.at(-1)?.trim() || "No disponible").replace(/\b\d{16,24}\b/g, value => `***${value.slice(-4)}`);
     const text = [`INTERVENCION HUMANA`, `Canal: ${v.channel}`, `Cliente: ${v.customerId}`, v.quantity ? `Cantidad: ${v.quantity}` : "", v.products?.length ? `Productos: ${v.products.join(", ")}` : "", `Motivo: ${v.reason}`, `Mensaje del cliente: ${latestMessage}`].filter(Boolean).join("\n");
-    const results = await Promise.allSettled(this.chatIds.map(async (chatId) => {
-      const res = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text }) });
-      if (!res.ok) throw new Error(`TELEGRAM_ERROR:${res.status}:chat=${chatId}`);
-    }));
+    const results = await Promise.allSettled(this.chatIds.map(chatId => this.send(chatId, text)));
     const failures = results.filter((result) => result.status === "rejected");
     if (failures.length > 0) throw new AggregateError(failures.map((failure) => failure.reason), `TELEGRAM_DELIVERY_FAILED:${failures.length}`);
   }

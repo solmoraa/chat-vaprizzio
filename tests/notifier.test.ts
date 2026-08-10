@@ -24,4 +24,19 @@ describe("TelegramNotifier", () => {
     const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body)).text as string;
     expect(body).toContain("***7843"); expect(body).not.toContain("0000003100052918257843");
   });
+
+  it("reintenta solo el chat que falló temporalmente", async () => {
+    const attempts = new Map<string, number>();
+    const request = vi.spyOn(globalThis, "fetch").mockImplementation(async (_url, options) => {
+      const chatId = String(JSON.parse(String(options?.body)).chat_id);
+      const count = (attempts.get(chatId) ?? 0) + 1;
+      attempts.set(chatId, count);
+      return new Response("{}", { status: chatId === "6579754152" && count === 1 ? 500 : 200 });
+    });
+    const notifier = new TelegramNotifier("token-test", "6579754152,1566518876");
+    await notifier.notify({ channel:"whatsapp", customerId:"cliente", reason:"alerta", messages:["mensaje"] });
+    expect(attempts.get("6579754152")).toBe(2);
+    expect(attempts.get("1566518876")).toBe(1);
+    expect(request).toHaveBeenCalledTimes(3);
+  });
 });

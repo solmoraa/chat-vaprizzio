@@ -4,6 +4,7 @@ export const products: Product[] = [
   { sku:"M1", brand:"Elfbar", model:"Ice King 40K", flavor:"Miami Mint", stock:7, price:26000, profile:["fresco"], description:"Menta fresca", active:true },
   { sku:"M2", brand:"Ignite", model:"V250", flavor:"Miami Mint", stock:3, price:25000, profile:["fresco"], description:"Menta fresca", active:true },
   { sku:"T1", brand:"Elfbar", model:"Ice King 40K", flavor:"Tiger Blood", stock:4, price:26000, profile:["dulce"], description:"Frutal", active:true },
+  { sku:"LM1", brand:"Lost Mary", model:"MO 5k", flavor:"Sour Gummy Mint", stock:2, price:13000, profile:["mentolado"], description:"Menta intensa", active:true, productUrl:"https://www.vaprizzio.com/productos/lost-mary-mo-5k1/" },
   { sku:"OOS", brand:"Elfbar", model:"Ice King 40K", flavor:"Cherry Fuse", stock:0, price:26000, profile:["dulce"], description:"Cereza", active:true },
   { sku:"OFF", brand:"Fake", model:"Fake", flavor:"Miami Mint", stock:50, price:1, profile:[], description:"", active:false }
 ];
