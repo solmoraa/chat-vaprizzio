@@ -44,7 +44,7 @@ for (const name of alertToolNames) {
 const descriptions: Record<string, string> = {
   reportar_llegada_retiro:"OBLIGATORIA cuando un cliente llega o está por llegar para retirar una compra. Notifica a Telegram como retiro de venta, nunca como cambio.",
   reportar_recordatorio_afuera:"OBLIGATORIA si un cliente que ya avisó que está afuera vuelve a insistir o apura. Reenvía siempre una alerta mucho más urgente a Telegram.",
-  reportar_consulta_post_comprobante:"OBLIGATORIA para cualquier consulta posterior a un comprobante mientras continúa una persona. La primera puede responder y alerta; las siguientes solo alertan sin respuesta automática.",
+  reportar_consulta_post_comprobante:"OBLIGATORIA para consultas posteriores a un comprobante. La primera puede responder y alertar; las siguientes esperan al humano sin responder ni repetir alertas.",
   preparar_venta_mayorista:"Cierra una venta mayorista fuera de la web, calcula el total en pesos con el valor USDT de Google Sheets y coordina pago, retiro o envío.",
   reportar_comprobante_mayorista:"OBLIGATORIA al recibir el comprobante de una venta mayorista con envío. Notifica a Telegram para preparar y despachar.",
   reportar_condicion_pago:"OBLIGATORIA si el cliente propone pagar al salir el vehículo o al recibir el producto. Notifica a Telegram y pausa la IA para que una persona decida.",

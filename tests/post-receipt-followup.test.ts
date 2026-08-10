@@ -4,7 +4,7 @@ import { ConversationRepository } from "../src/database/conversation-repository.
 import { TakeoverService } from "../src/services/takeover-service.js";
 
 describe("consultas posteriores al comprobante", () => {
-  it("responde una vez por Uber y luego solo vuelve a alertar", async () => {
+  it("responde y alerta una vez por Uber, luego espera en silencio", async () => {
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();
     const takeover = new TakeoverService(repo, { notify });
@@ -15,8 +15,7 @@ describe("consultas posteriores al comprobante", () => {
     const second = await tools.execute("reportar_consulta_post_comprobante", { channel:"whatsapp", customerId:"post-pago", question:"me confirmás?", requestedMethod:"otro", triggerMessage:"me confirmás?" });
 
     expect(first).toMatchObject({ action:"RESPONDER_Y_DERIVAR", customerMessage:"Sii, se puede enviar por Uber. Dame un segundo que lo coordino" });
-    expect(second).toMatchObject({ action:"SOLO_NOTIFICAR", customerMessage:"NO_REPLY" });
-    expect(notify).toHaveBeenCalledTimes(3);
-    expect(notify.mock.calls[2]?.[0]?.reason).toContain("RESPONDER URGENTE");
+    expect(second).toMatchObject({ action:"ESPERAR_HUMANO", customerMessage:"NO_REPLY", notificationSent:false });
+    expect(notify).toHaveBeenCalledTimes(2);
   });
 });

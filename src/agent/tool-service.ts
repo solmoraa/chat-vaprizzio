@@ -139,11 +139,9 @@ export class AgentToolService {
         const question = String(args.question ?? triggerMessage).trim();
         const method = String(args.requestedMethod ?? "otro").toLowerCase();
         const alreadyAnswered = this.postReceiptFollowupAnswered.has(key);
-        const reason = alreadyAnswered
-          ? `🚨 NUEVO MENSAJE MIENTRAS SE COORDINA PEDIDO PAGADO — RESPONDER URGENTE 🚨 ${question}`
-          : `Cliente consulta entrega después de enviar comprobante${method === "uber_didi" ? " — solicita Uber/Didi" : ""}`;
+        if (alreadyAnswered) return { action:"ESPERAR_HUMANO", customerMessage:"NO_REPLY", notificationSent:false, state:"WAITING_HUMAN" };
+        const reason = `Cliente consulta entrega después de enviar comprobante${method === "uber_didi" ? " — solicita Uber/Didi" : ""}`;
         const result = await this.takeover.request(channel, customerId, reason, undefined, undefined, true);
-        if (alreadyAnswered) return { action:"SOLO_NOTIFICAR", customerMessage:"NO_REPLY", state:result.state, pausedUntil:result.pausedUntil };
         this.postReceiptFollowupAnswered.add(key);
         const customerMessage = method === "uber_didi" ? "Sii, se puede enviar por Uber. Dame un segundo que lo coordino" : "Dale, dame un segundo que lo consulto";
         return { action:"RESPONDER_Y_DERIVAR", customerMessage, state:result.state, pausedUntil:result.pausedUntil };
