@@ -24,4 +24,13 @@ describe("comparación verificada de modelos", () => {
     ]);
     expect(fetch).toHaveBeenCalledTimes(2);
   });
+
+  it("agrega el control de frescura como dato verificado del Ice King", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(
+      '<meta name="description" content="Descripción pública verificada del producto Ice King.">',
+      { status:200 }
+    )));
+    const result = await new CatalogService(fixture()).compareModels(["Elfbar Ice King 40K"]);
+    expect(result[0]).toMatchObject({ model:"Ice King 40K", verifiedFacts:["Tiene un botón para controlar la frescura."] });
+  });
 });
