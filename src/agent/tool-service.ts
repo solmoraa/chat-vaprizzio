@@ -7,12 +7,13 @@ import { DeliveryService, buenosAiresHour } from "../services/delivery-service.j
 import type { ConversationRepository } from "../database/conversation-repository.js";
 
 export class AgentToolService {
+  private readonly postReceiptFollowupAnswered = new Set<string>();
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService(), readonly conversations?: ConversationRepository) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
-    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_entrega", "consultar_negocio"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
       if (newTopicReadTools.has(name)) this.takeover.resume(channel, customerId);
@@ -111,6 +112,7 @@ export class AgentToolService {
         return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_comprobante_web": {
+        this.postReceiptFollowupAnswered.delete(`${channel}:${customerId}`);
         const deliveryMode = String(args.deliveryMode ?? "sin_definir").toLowerCase();
         const paymentTiming = String(args.paymentTiming ?? "antes_envio").toLowerCase();
         const orderReference = String(args.orderReference ?? "");
@@ -131,6 +133,20 @@ export class AgentToolService {
         const modeLabel = deliveryMode === "sin_definir" ? "entrega sin definir" : deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
         const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
         return { action: "VERIFICAR_PAGO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
+      }
+      case "reportar_consulta_post_comprobante": {
+        const key = `${channel}:${customerId}`;
+        const question = String(args.question ?? triggerMessage).trim();
+        const method = String(args.requestedMethod ?? "otro").toLowerCase();
+        const alreadyAnswered = this.postReceiptFollowupAnswered.has(key);
+        const reason = alreadyAnswered
+          ? `🚨 NUEVO MENSAJE MIENTRAS SE COORDINA PEDIDO PAGADO — RESPONDER URGENTE 🚨 ${question}`
+          : `Cliente consulta entrega después de enviar comprobante${method === "uber_didi" ? " — solicita Uber/Didi" : ""}`;
+        const result = await this.takeover.request(channel, customerId, reason, undefined, undefined, true);
+        if (alreadyAnswered) return { action:"SOLO_NOTIFICAR", customerMessage:"NO_REPLY", state:result.state, pausedUntil:result.pausedUntil };
+        this.postReceiptFollowupAnswered.add(key);
+        const customerMessage = method === "uber_didi" ? "Sii, se puede enviar por Uber. Dame un segundo que lo coordino" : "Dale, dame un segundo que lo consulto";
+        return { action:"RESPONDER_Y_DERIVAR", customerMessage, state:result.state, pausedUntil:result.pausedUntil };
       }
       case "reportar_condicion_pago": {
         const proposedTiming = String(args.proposedTiming ?? "vehiculo_enviado").toLowerCase();

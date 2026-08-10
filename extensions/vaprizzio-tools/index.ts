@@ -22,6 +22,7 @@ const schemas: Record<string, object> = {
   cerrar_conversacion:object(identity),
   iniciar_nuevo_tema:{type:"object",additionalProperties:false,properties:{...identity,triggerMessage:string()},required:["channel","customerId","triggerMessage"]},
   reportar_comprobante_web:{type:"object",additionalProperties:false,properties:{...identity,deliveryMode:string({enum:["sin_definir","envio","uber_didi","punto_retiro"]}),paymentTiming:string({enum:["antes_envio","vehiculo_enviado","al_recibir"]}),orderReference:string()},required:["channel","customerId","deliveryMode"]},
+  reportar_consulta_post_comprobante:{type:"object",additionalProperties:false,properties:{...identity,question:string(),requestedMethod:string({enum:["uber_didi","flex","retiro","otro"]})},required:["channel","customerId","question","requestedMethod"]},
   reportar_condicion_pago:{type:"object",additionalProperties:false,properties:{...identity,proposedTiming:string({enum:["vehiculo_enviado","al_recibir"]})},required:["channel","customerId","proposedTiming"]},
   reportar_solicitud_media:{type:"object",additionalProperties:false,properties:{...identity,mediaType:string({enum:["foto","video","fotos_y_video"]}),product:string()},required:["channel","customerId","mediaType"]},
   reportar_llegada_sin_producto:{type:"object",additionalProperties:false,properties:{...identity,arrivalStatus:string()},required:["channel","customerId","arrivalStatus"]},
@@ -35,7 +36,7 @@ const schemas: Record<string, object> = {
   carrito_agregar:object({...identity,sku:string(),quantity:integer({minimum:1})}), carrito_establecer:object({...identity,sku:string(),quantity:integer({minimum:0})}),
   carrito_consultar:object(identity), resumir_pedido:object(identity), solicitar_intervencion_humana:object({...identity,reason:string()})
 };
-const alertToolNames = ["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"];
+const alertToolNames = ["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"];
 for (const name of alertToolNames) {
   const schema = schemas[name] as { properties?: Record<string, unknown> } | undefined;
   if (schema?.properties) schema.properties.triggerMessage = string({ description:"Texto exacto del último mensaje del cliente que dispara esta acción" });
@@ -43,6 +44,7 @@ for (const name of alertToolNames) {
 const descriptions: Record<string, string> = {
   reportar_llegada_retiro:"OBLIGATORIA cuando un cliente llega o está por llegar para retirar una compra. Notifica a Telegram como retiro de venta, nunca como cambio.",
   reportar_recordatorio_afuera:"OBLIGATORIA si un cliente que ya avisó que está afuera vuelve a insistir o apura. Reenvía siempre una alerta mucho más urgente a Telegram.",
+  reportar_consulta_post_comprobante:"OBLIGATORIA para cualquier consulta posterior a un comprobante mientras continúa una persona. La primera puede responder y alerta; las siguientes solo alertan sin respuesta automática.",
   preparar_venta_mayorista:"Cierra una venta mayorista fuera de la web, calcula el total en pesos con el valor USDT de Google Sheets y coordina pago, retiro o envío.",
   reportar_comprobante_mayorista:"OBLIGATORIA al recibir el comprobante de una venta mayorista con envío. Notifica a Telegram para preparar y despachar.",
   reportar_condicion_pago:"OBLIGATORIA si el cliente propone pagar al salir el vehículo o al recibir el producto. Notifica a Telegram y pausa la IA para que una persona decida.",
