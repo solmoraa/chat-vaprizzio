@@ -63,11 +63,9 @@ export function createApp(d: AppDependencies) {
 
   app.post("/webhooks/internal", express.json({ limit: "32kb" }), (req, res) => {
     if (!d.config.INTERNAL_WEBHOOK_SECRET || req.header("x-internal-secret") !== d.config.INTERNAL_WEBHOOK_SECRET) return res.sendStatus(401);
-    const { command, channel, customerId, text, quantity, unitPrice, conditions, operator } = req.body as Record<string, unknown>;
+    const { command, channel, customerId, text, quantity, unitPrice, conditions } = req.body as Record<string, unknown>;
     try {
       if (command === "resume") return res.json(d.takeover.resume(channel as "whatsapp" | "instagram", String(customerId)));
-      if (command === "take") return res.json(d.takeover.take(channel as "whatsapp" | "instagram", String(customerId), String(operator ?? "operador")));
-      if (command === "confirm_payment") return res.json(d.takeover.humanMessage(channel as "whatsapp" | "instagram", String(customerId), "Pago confirmado por operador"));
       if (command === "human_message") return res.json(d.takeover.humanMessage(channel as "whatsapp" | "instagram", String(customerId), String(text ?? "")));
       if (command === "set_negotiated_price") { const c = d.conversations.setNegotiatedPrice(channel as "whatsapp" | "instagram", String(customerId), { quantity: Number(quantity), unitPrice: Number(unitPrice), conditions: String(conditions ?? ""), timestamp: new Date().toISOString() }); return res.json(c); }
       return res.status(400).json({ error: "UNKNOWN_COMMAND" });

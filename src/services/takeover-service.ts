@@ -29,8 +29,7 @@ export class TakeoverService {
     if (match?.[1] && match[2]) this.repo.setNegotiatedPrice(channel, customerId, { quantity: Number(match[1]), unitPrice: Number(match[2].replace(/\./g, "")), conditions: text, timestamp: new Date().toISOString() });
     return c;
   }
-  take(channel: Channel, customerId: string, operator: string) { this.repo.assignHuman(channel, customerId, operator); return this.repo.setState(channel, customerId, "HUMAN_ACTIVE", null); }
-  resume(channel: Channel, customerId: string) { this.repo.clearHumanAssignment(channel, customerId); return this.repo.setState(channel, customerId, "AI_ACTIVE", null); }
+  resume(channel: Channel, customerId: string) { return this.repo.setState(channel, customerId, "AI_ACTIVE", null); }
   close(channel: Channel, customerId: string) { return this.repo.close(channel, customerId); }
   recordCustomerMessage(channel: Channel, customerId: string, message: string) { return this.repo.appendMessage(channel, customerId, message); }
 }

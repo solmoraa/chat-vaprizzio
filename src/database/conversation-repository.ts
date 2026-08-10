@@ -21,9 +21,6 @@ export class ConversationRepository {
       id TEXT PRIMARY KEY, channel TEXT NOT NULL, customer_id TEXT NOT NULL, model TEXT NOT NULL,
       quantity INTEGER NOT NULL, expires_at TEXT NOT NULL, created_at TEXT NOT NULL
     )`);
-    this.db.exec(`CREATE TABLE IF NOT EXISTS human_assignments (
-      conversation_id TEXT PRIMARY KEY, operator TEXT NOT NULL, assigned_at TEXT NOT NULL
-    )`);
     const retentionCutoff = new Date(Date.now() - retentionDays * 86_400_000).toISOString();
     this.db.prepare("DELETE FROM conversations WHERE last_activity < ?").run(retentionCutoff);
     this.releaseExpiredWholesaleReservations();
@@ -74,8 +71,5 @@ export class ConversationRepository {
   }
   releaseWholesaleReservation(channel: Channel, customerId: string) { this.db.prepare("DELETE FROM wholesale_reservations WHERE channel=? AND customer_id=?").run(channel, customerId); }
   releaseExpiredWholesaleReservations(now = new Date()) { this.db.prepare("DELETE FROM wholesale_reservations WHERE expires_at <= ?").run(now.toISOString()); }
-  assignHuman(channel: Channel, customerId: string, operator: string) { const conversationId=this.id(channel, customerId); this.db.prepare(`INSERT INTO human_assignments (conversation_id,operator,assigned_at) VALUES (?, ?, ?) ON CONFLICT(conversation_id) DO UPDATE SET operator=excluded.operator,assigned_at=excluded.assigned_at`).run(conversationId, operator, new Date().toISOString()); return { conversationId, operator }; }
-  humanAssignment(channel: Channel, customerId: string) { return this.db.prepare("SELECT operator,assigned_at FROM human_assignments WHERE conversation_id=?").get(this.id(channel, customerId)) ?? null; }
-  clearHumanAssignment(channel: Channel, customerId: string) { this.db.prepare("DELETE FROM human_assignments WHERE conversation_id=?").run(this.id(channel, customerId)); }
   private map(r: Record<string, unknown>): Conversation { return { id: String(r.id), channel: String(r.channel) as Channel, customerId: String(r.customer_id), state: String(r.state) as ConversationState, currentProduct: r.current_product as string | null, currentFlavor: r.current_flavor as string | null, cart: JSON.parse(String(r.cart)), negotiatedQuantity: r.negotiated_quantity == null ? null : Number(r.negotiated_quantity), negotiatedPrice: r.negotiated_price ? JSON.parse(String(r.negotiated_price)) : null, customerCity: r.customer_city as string | null, lastMessages: JSON.parse(String(r.last_messages)), lastActivity: String(r.last_activity), pausedUntil: r.paused_until == null ? null : String(r.paused_until) }; }
 }
