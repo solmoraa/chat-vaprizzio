@@ -8,8 +8,9 @@ import type { MessageDebouncer } from "./services/debouncer.js";
 import type { OpenClawClient } from "./agent/openclaw-client.js";
 import type { TakeoverService } from "./services/takeover-service.js";
 import { verifyMetaSignature } from "./channels/instagram/signature.js";
+import type { InstagramClient } from "./channels/instagram/client.js";
 
-export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; }
+export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send">; }
 
 export function createApp(d: AppDependencies) {
   const app = express();
@@ -46,7 +47,11 @@ export function createApp(d: AppDependencies) {
       if (!customerId || !text || event.message?.is_echo) continue;
       const c = d.conversations.getOrCreate("instagram", customerId); c.lastMessages.push(text); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
       if (!d.takeover.canAiReply("instagram", customerId)) continue;
-      d.debounce.push(`instagram:${customerId}`, text, messages => d.openclaw.dispatch("instagram", customerId, messages));
+      d.debounce.push(`instagram:${customerId}`, text, async messages => {
+        if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
+        const reply = await d.openclaw.reply("instagram", customerId, messages);
+        await d.instagram.send(customerId, reply);
+      });
     }
     res.sendStatus(200);
   });

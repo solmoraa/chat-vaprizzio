@@ -14,6 +14,7 @@ const schema = z.object({
   OPENCLAW_BASE_URL: z.string().url().default("http://127.0.0.1:18789"),
   OPENCLAW_HOOK_TOKEN: z.string().default(""),
   OPENCLAW_AGENT_ID: z.string().default("vaprizzio-sales"),
+  OPENCLAW_CLI_PATH: z.string().default("openclaw"),
   WHATSAPP_ACCOUNT: z.string().default(""),
   WHATSAPP_TEST_ALLOW_FROM: z.string().default(""),
   INSTAGRAM_ACCOUNT_ID: z.string().default(""),

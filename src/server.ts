@@ -10,6 +10,7 @@ import { ConsoleNotifier, TelegramNotifier } from "./notifications/notifier.js";
 import { AgentToolService } from "./agent/tool-service.js";
 import { MessageDebouncer } from "./services/debouncer.js";
 import { OpenClawClient } from "./agent/openclaw-client.js";
+import { InstagramClient } from "./channels/instagram/client.js";
 import { createApp } from "./app.js";
 import products from "../fixtures/products.json" with { type: "json" };
 import flavors from "../fixtures/flavors.json" with { type: "json" };
@@ -26,5 +27,5 @@ const conversations = new ConversationRepository(config.DATABASE_PATH, config.CO
 const notifier = config.TELEGRAM_BOT_TOKEN && config.HUMAN_NOTIFICATION_CHAT_ID ? new TelegramNotifier(config.TELEGRAM_BOT_TOKEN, config.HUMAN_NOTIFICATION_CHAT_ID) : new ConsoleNotifier();
 const takeover = new TakeoverService(conversations, notifier);
 const tools = new AgentToolService(new CatalogService(provider), new CartService(conversations), takeover, new SalesService(provider, conversations, config.SALE_CONFIRMATION_MODE), undefined, conversations);
-const app = createApp({ config, tools, conversations, takeover, debounce: new MessageDebouncer(config.DEBOUNCE_MS), openclaw: new OpenClawClient(config.OPENCLAW_BASE_URL, config.OPENCLAW_HOOK_TOKEN, config.OPENCLAW_AGENT_ID) });
+const app = createApp({ config, tools, conversations, takeover, debounce: new MessageDebouncer(config.DEBOUNCE_MS), openclaw: new OpenClawClient(config.OPENCLAW_BASE_URL, config.OPENCLAW_HOOK_TOKEN, config.OPENCLAW_AGENT_ID, config.OPENCLAW_CLI_PATH), instagram:new InstagramClient(config.META_ACCESS_TOKEN, config.META_GRAPH_VERSION) });
 app.listen(config.PORT, config.HOST, () => console.info(`Vaprizzio ${config.APP_ENV} listening on ${config.HOST}:${config.PORT}`));
