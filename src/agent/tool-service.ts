@@ -7,15 +7,16 @@ import { DeliveryService, buenosAiresHour } from "../services/delivery-service.j
 import type { ConversationRepository } from "../database/conversation-repository.js";
 
 export class AgentToolService {
-  private readonly postReceiptFollowupAnswered = new Set<string>();
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService(), readonly conversations?: ConversationRepository) {}
   async execute(name: string, args: Record<string, unknown>) {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
     const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
-    const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_entrega", "consultar_negocio"]);
+    const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_negocio"]);
+    const silentWhileHumanCoordinates = new Set(["consultar_entrega", "solicitar_envio_app", "reportar_consulta_post_comprobante"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
+      if (silentWhileHumanCoordinates.has(name)) return { blocked:true, reason:"HUMAN_COORDINATION_ACTIVE", customerMessage:"NO_REPLY", notificationSent:false, instruction:"Una persona ya está atendiendo esta operación. No respondas ni envíes otra alerta." };
       if (newTopicReadTools.has(name)) this.takeover.resume(channel, customerId);
       else if (name !== "get_conversation_state" && name !== "iniciar_nuevo_tema" && !alertTools.has(name)) return { blocked:true, reason:"AI_NOT_ACTIVE", customerMessage:"NO_REPLY", instruction:"No expliques la pausa ni prometas intervención. No envíes ningún mensaje al cliente." };
     }
@@ -112,7 +113,6 @@ export class AgentToolService {
         return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_comprobante_web": {
-        this.postReceiptFollowupAnswered.delete(`${channel}:${customerId}`);
         const deliveryMode = String(args.deliveryMode ?? "sin_definir").toLowerCase();
         const paymentTiming = String(args.paymentTiming ?? "antes_envio").toLowerCase();
         const orderReference = String(args.orderReference ?? "");
@@ -135,16 +135,7 @@ export class AgentToolService {
         return { action: "VERIFICAR_PAGO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_consulta_post_comprobante": {
-        const key = `${channel}:${customerId}`;
-        const question = String(args.question ?? triggerMessage).trim();
-        const method = String(args.requestedMethod ?? "otro").toLowerCase();
-        const alreadyAnswered = this.postReceiptFollowupAnswered.has(key);
-        if (alreadyAnswered) return { action:"ESPERAR_HUMANO", customerMessage:"NO_REPLY", notificationSent:false, state:"WAITING_HUMAN" };
-        const reason = `Cliente consulta entrega después de enviar comprobante${method === "uber_didi" ? " — solicita Uber/Didi" : ""}`;
-        const result = await this.takeover.request(channel, customerId, reason, undefined, undefined, true);
-        this.postReceiptFollowupAnswered.add(key);
-        const customerMessage = method === "uber_didi" ? "Sii, se puede enviar por Uber. Dame un segundo que lo coordino" : "Dale, dame un segundo que lo consulto";
-        return { action:"RESPONDER_Y_DERIVAR", customerMessage, state:result.state, pausedUntil:result.pausedUntil };
+        return { action:"ESPERAR_HUMANO", customerMessage:"NO_REPLY", notificationSent:false, state:"WAITING_HUMAN" };
       }
       case "reportar_condicion_pago": {
         const proposedTiming = String(args.proposedTiming ?? "vehiculo_enviado").toLowerCase();
