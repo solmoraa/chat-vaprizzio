@@ -82,6 +82,7 @@ export class AgentToolService {
         return { action: "AVISADO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "coordinar_visita_local": {
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/" };
         const visitType = String(args.visitType ?? "retiro").toLowerCase();
         const product = String(args.product ?? "");
         const preferredTime = String(args.preferredTime ?? "");
@@ -129,6 +130,7 @@ export class AgentToolService {
         return { action: "ATENCION_HUMANA", customerMessage: "Dale, ya te atiendo!", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_llegada_sin_horario": {
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/" };
         const arrivalStatus = String(args.arrivalStatus ?? "ya está viniendo");
         const product = String(args.product ?? "");
         const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE VINIENDO AL LOCAL SIN HORARIO ACORDADO 🚨 Estado: ${arrivalStatus}`, undefined, product ? [product] : undefined);

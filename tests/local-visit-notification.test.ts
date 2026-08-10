@@ -5,6 +5,8 @@ import { TakeoverService } from "../src/services/takeover-service.js";
 
 describe("coordinación de visitas al local", () => {
   it.each(["retiro", "cambio"])("notifica y pausa para coordinar un %s", async (visitType) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-09T21:00:00Z"));
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();
     const takeover = new TakeoverService(repo, { notify });
@@ -21,5 +23,6 @@ describe("coordinación de visitas al local", () => {
     expect(notify).toHaveBeenCalledOnce();
     expect(result).toMatchObject({ action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", state: "WAITING_HUMAN" });
     expect(takeover.canAiReply("whatsapp", `visita-${visitType}`)).toBe(false);
+    vi.useRealTimers();
   });
 });

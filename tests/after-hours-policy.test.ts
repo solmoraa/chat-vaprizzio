@@ -22,6 +22,15 @@ describe("atención después del cierre del local", () => {
     }
   });
 
+  it("después de las 22 rechaza retiros inmediatos sin generar alertas", () => {
+    for (const instructions of [agents, skill]) {
+      expect(instructions).toContain("horario para retiros y envíos ya terminó");
+      expect(instructions).toContain("Didi o Uber para mañana");
+      expect(instructions).toMatch(/no ejecutes.+alerta/is);
+      expect(instructions).toMatch(/no (digas|prometas).+(verificar|retiro)/is);
+    }
+  });
+
   it("deja al humano decidir una llegada sin horario", () => {
     expect(agents).toContain("si no hay nadie disponible, acuerda otro horario");
     expect(agents).toContain("/reanudar");
