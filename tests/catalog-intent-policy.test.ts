@@ -52,4 +52,12 @@ describe("intención general de comprar un vape", () => {
       expect(instructions).toMatch(/(nunca|prohibido).+alerta de Telegram/is);
     }
   });
+
+  it("invita a seguir las redes cuando no hay fecha de reposición", () => {
+    for (const instructions of [agents, skill]) {
+      expect(instructions).toContain("Estate atento a nuestras redes");
+      expect(instructions).toMatch(/no (manejamos|hay).+fechas? exactas?/is);
+      expect(instructions).toMatch(/no (prometas|inventes).+fecha/is);
+    }
+  });
 });
