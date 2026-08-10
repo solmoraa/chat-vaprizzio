@@ -40,4 +40,12 @@ describe("intención general de comprar un vape", () => {
     expect(skill).toContain("Si la respuesta ya contiene uno o más `productUrl`");
     expect(skill).toContain("no ofrezcas pasarlos después");
   });
+
+  it("lista dinámicamente todos los modelos de una marca", () => {
+    for (const instructions of [agents, skill]) {
+      expect(instructions).toMatch(/(todos los modelos distintos|cada modelo distinto).+marca.+stock/is);
+      expect(instructions).toContain("Google Sheets");
+      expect(instructions).toContain("https://www.vaprizzio.com/productos/");
+    }
+  });
 });
