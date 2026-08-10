@@ -5,7 +5,7 @@ import type { Channel, Conversation, ConversationState, NegotiatedPrice } from "
 
 export class ConversationRepository {
   private readonly db: DatabaseSync;
-  constructor(path: string, private readonly idleMinutes = 120, retentionDays = 30) {
+  constructor(path: string, private readonly idleMinutes = 1440, retentionDays = 30) {
     if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });
     this.db = new DatabaseSync(path);
     this.db.exec(`CREATE TABLE IF NOT EXISTS conversations (
