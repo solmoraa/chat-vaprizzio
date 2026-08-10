@@ -20,6 +20,25 @@ describe("plazo para productos fallados", () => {
     expect(takeover.canAiReply("whatsapp", "dentro-plazo")).toBe(false);
   });
 
+  it("no vuelve a responder ni alertar mientras continúa una persona", async () => {
+    const { notify, tools } = setup();
+    await tools.execute("evaluar_producto_fallado", {
+      channel:"whatsapp", customerId:"reclamo-atendido", daysSincePurchase:2, problem:"Anda mal"
+    });
+
+    const followup = await tools.execute("evaluar_producto_fallado", {
+      channel:"whatsapp", customerId:"reclamo-atendido", daysSincePurchase:2, problem:"Tiene gusto a quemado"
+    });
+
+    expect(followup).toMatchObject({
+      blocked:true,
+      reason:"HUMAN_COORDINATION_ACTIVE",
+      customerMessage:"NO_REPLY",
+      notificationSent:false
+    });
+    expect(notify).toHaveBeenCalledOnce();
+  });
+
   it("rechaza cordialmente sin notificar si pasaron más de 2 días", async () => {
     const { notify, takeover, tools } = setup();
     const result = await tools.execute("evaluar_producto_fallado", { channel:"whatsapp", customerId:"fuera-plazo", daysSincePurchase:3 });
