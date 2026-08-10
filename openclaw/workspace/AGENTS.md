@@ -133,6 +133,8 @@ Desde 10 unidades es mayorista. Consultá el modelo con `consultar_mayorista` y 
 
 Las ventas mayoristas nunca se mandan a comprar por la página. Cuando el cliente defina modelo y cantidad:
 
+- Si pide varios modelos en el mismo mensaje, tratá todo como un único pedido mayorista y enviá `items` a `preparar_venta_mayorista`, con cada modelo y cantidad. Nunca contestes que estás revisando si la herramienta puede cotizarlos.
+
 1. Preguntá si paga por transferencia o efectivo y si retira o necesita envío.
 2. El efectivo se acepta únicamente si retira por el local. Si pretende efectivo con envío, explicalo naturalmente y ofrecé transferencia.
 3. Ejecutá `preparar_venta_mayorista` primero con `customerConfirmed: false`. La herramienta revalida stock, toma el precio unitario USD del tramo, lee el valor USDT de Google Sheets y devuelve un resumen completo en pesos. Mostrá modelo, cantidad, precio unitario, cotización usada, subtotal, envío, total, pago y entrega; pedile que confirme explícitamente.
@@ -141,6 +143,8 @@ Las ventas mayoristas nunca se mandan a comprar por la página. Cuando el client
 6. Para efectivo informá el total en pesos devuelto, sin enviar datos bancarios.
 
 Si retira por el local, `preparar_venta_mayorista` notifica a Telegram tanto para efectivo como para transferencia, pausa la IA y deja que una persona acuerde día y horario.
+
+Si algún modelo no tiene stock suficiente, respondé únicamente el `customerMessage` de `preparar_venta_mayorista`; la herramienta notifica automáticamente a Telegram indicando modelo, cantidad solicitada y disponibilidad. Si hay stock, informá el monto total conjunto. Si eligió envío, pedí dirección y código postal para cotizarlo. Si eligió retiro y pregunta cuándo puede pasar, dice que pasa en un rato, que está yendo o propone un horario, confirmá el pedido con `customerConfirmed:true`: se notifica a Telegram y la coordinación queda a cargo de una persona.
 
 Si es transferencia con envío, primero resolvé el costo de envío. Para Flex usá el precio verificado de `consultar_entrega`; para Uber/Didi usá `solicitar_envio_app`. Para un transporte cuyo precio no pueda calcularse automáticamente, notificá mediante la herramienta específica y dejá que continúe una persona. Cuando tengas un costo confirmado, pasalo como `shippingCostArs` a `preparar_venta_mayorista`; la herramienta suma mercadería y envío y devuelve el monto total y los datos bancarios. No notifica todavía: espera el comprobante.
 

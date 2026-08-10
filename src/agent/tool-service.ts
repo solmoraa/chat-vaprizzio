@@ -188,36 +188,56 @@ export class AgentToolService {
       }
       case "listar_mayorista": return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, models: await this.catalog.wholesaleList() };
       case "preparar_venta_mayorista": {
-        const model = String(args.model ?? "");
-        const quantity = Number(args.quantity);
+        const requestedItems = Array.isArray(args.items)
+          ? args.items.map(item => ({ model:String((item as Record<string, unknown>).model ?? ""), quantity:Number((item as Record<string, unknown>).quantity) }))
+          : [{ model:String(args.model ?? ""), quantity:Number(args.quantity) }];
         const paymentMethod = String(args.paymentMethod ?? "transferencia").toLowerCase();
         const deliveryMode = String(args.deliveryMode ?? "retiro").toLowerCase();
         const shippingCostArs = args.shippingCostArs == null ? null : Number(args.shippingCostArs);
         const customerConfirmed = args.customerConfirmed === true;
         if (paymentMethod === "efectivo" && deliveryMode !== "retiro") return { action:"PAGO_INVALIDO", customerMessage:"En efectivo es únicamente retirando por el local. Para envíos trabajamos con transferencia." };
-        const quote = await this.catalog.wholesaleTotalArs(model, quantity);
-        if (!quote) return { action:"MODELO_O_CANTIDAD_INVALIDA", customerMessage:"Dame un segundo que lo consulto" };
-        if (!quote.exchangeRateArs || quote.subtotalArs == null) {
-          const result = await this.takeover.request(channel, customerId, "Falta valor USDT para cerrar venta mayorista", quantity, [model]);
+        if (!requestedItems.length || requestedItems.some(item => !item.model || !Number.isInteger(item.quantity) || item.quantity < 10)) return { action:"MODELO_O_CANTIDAD_INVALIDA", customerMessage:"Dame un segundo que lo consulto" };
+        const quotedItems = [] as Array<{ model:string; quantity:number; unitPriceUsd:number; unitPriceArs:number; subtotalArs:number; exchangeRateArs:number; stockModel:string }>;
+        for (const item of requestedItems) {
+          const quote = await this.catalog.wholesaleTotalArs(item.model, item.quantity);
+          if (!quote) {
+            const result = await this.takeover.request(channel, customerId, "Producto mayorista no encontrado", item.quantity, [item.model]);
+            return { action:"MODELO_O_CANTIDAD_INVALIDA", customerMessage:"Dame un segundo que lo consulto", state:result.state, pausedUntil:result.pausedUntil };
+          }
+          if (!quote.exchangeRateArs || quote.subtotalArs == null || quote.unitPriceArs == null) {
+            const result = await this.takeover.request(channel, customerId, "Falta valor USDT para cerrar venta mayorista", item.quantity, [item.model]);
+            return { action:"CONSULTAR_CAMBIO", customerMessage:"Dame un segundo que reviso el cambio", state:result.state, pausedUntil:result.pausedUntil };
+          }
+          const stock = await this.catalog.wholesaleAvailableStock(item.model);
+          const reservedByOthers = this.conversations?.reservedWholesaleByOthers(channel, customerId, stock?.model ?? item.model) ?? 0;
+          const available = Math.max(0, (stock?.quantity ?? 0) - reservedByOthers);
+          if (!stock || available < item.quantity) {
+            const result = await this.takeover.request(channel, customerId, "Stock mayorista insuficiente", item.quantity, [item.model, `Disponible: ${available}`]);
+            return { action:"STOCK_INSUFICIENTE", customerMessage:"Dame un segundo que reviso bien el stock disponible", model:item.model, requested:item.quantity, available, state:result.state, pausedUntil:result.pausedUntil };
+          }
+          quotedItems.push({ model:quote.model, quantity:item.quantity, unitPriceUsd:quote.selected!.unitPriceUsd, unitPriceArs:quote.unitPriceArs, subtotalArs:quote.subtotalArs, exchangeRateArs:quote.exchangeRateArs, stockModel:stock.model });
+        }
+        const exchangeRateArs = quotedItems[0]!.exchangeRateArs;
+        const subtotalArs = quotedItems.reduce((total, item) => total + item.subtotalArs, 0);
+        const totalQuantity = quotedItems.reduce((total, item) => total + item.quantity, 0);
+        const itemLabels = quotedItems.map(item => `${item.quantity} ${item.model}`);
+        if (!exchangeRateArs) {
+          const result = await this.takeover.request(channel, customerId, "Falta valor USDT para cerrar venta mayorista", totalQuantity, itemLabels);
           return { action:"CONSULTAR_CAMBIO", customerMessage:"Dame un segundo que reviso el cambio", state:result.state, pausedUntil:result.pausedUntil };
         }
-        if (deliveryMode === "envio" && shippingCostArs == null) return { action:"COTIZAR_ENVIO", customerMessage:"Pasame la dirección y el código postal así te cotizo el envío", subtotalArs:quote.subtotalArs };
-        const totalArs = quote.subtotalArs + (shippingCostArs ?? 0);
+        if (deliveryMode === "envio" && shippingCostArs == null) return { action:"COTIZAR_ENVIO", customerMessage:"Pasame la dirección y el código postal así te cotizo el envío", items:quotedItems, subtotalArs };
+        const totalArs = subtotalArs + (shippingCostArs ?? 0);
         const money = new Intl.NumberFormat("es-AR").format(totalArs);
         const bank = { alias:"Fabri.moraa", cvu:"0000003100052918257843", holder:"Fabrizio Tomas Mora" };
-        const stock = await this.catalog.wholesaleAvailableStock(model);
-        const reservedByOthers = this.conversations?.reservedWholesaleByOthers(channel, customerId, stock?.model ?? model) ?? 0;
-        const availableToReserve = Math.max(0, (stock?.quantity ?? 0) - reservedByOthers);
-        if (!stock || availableToReserve < quantity) return { action:"STOCK_INSUFICIENTE", customerMessage:"Dame un segundo que reviso bien el stock disponible", available:availableToReserve };
-        const summary = { model:quote.model, quantity, unitPriceUsd:quote.selected!.unitPriceUsd, exchangeRateArs:quote.exchangeRateArs, unitPriceArs:quote.unitPriceArs, subtotalArs:quote.subtotalArs, shippingCostArs:shippingCostArs ?? 0, totalArs, paymentMethod, deliveryMode };
-        if (!customerConfirmed) return { action:"PEDIR_CONFIRMACION", customerMessage:`Te queda así: ${quantity} unidades de ${quote.model}, total $${money}${shippingCostArs ? " con envío incluido" : ""}. Confirmame si está bien y avanzamos`, summary };
-        const reservation = this.conversations?.reserveWholesale(channel, customerId, stock.model, quantity);
+        const summary = { items:quotedItems, exchangeRateArs, subtotalArs, shippingCostArs:shippingCostArs ?? 0, totalArs, paymentMethod, deliveryMode };
+        if (!customerConfirmed) return { action:"PEDIR_CONFIRMACION", customerMessage:`Te queda así: ${itemLabels.join(" + ")}, total $${money}${shippingCostArs ? " con envío incluido" : ""}. Confirmame si está bien y avanzamos`, summary };
+        const reservations = quotedItems.map(item => this.conversations?.reserveWholesale(channel, customerId, item.stockModel, item.quantity)).filter(Boolean);
         if (deliveryMode === "retiro") {
-          const result = await this.takeover.request(channel, customerId, `Venta mayorista para coordinar retiro - pago ${paymentMethod}`, quantity, [model, `Total: $${money}`]);
+          const result = await this.takeover.request(channel, customerId, `Venta mayorista para coordinar retiro - pago ${paymentMethod}`, totalQuantity, [...itemLabels, `Total: $${money}`]);
           const paymentText = paymentMethod === "efectivo" ? `El total en efectivo es $${money}.` : `El total es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}.`;
-          return { action:"COORDINAR_RETIRO", customerMessage:`${paymentText} Dame un segundo que coordinamos el día y horario de retiro`, ...quote, shippingCostArs:0, totalArs, reservation, bank:paymentMethod === "transferencia" ? bank : undefined, state:result.state, pausedUntil:result.pausedUntil };
+          return { action:"COORDINAR_RETIRO", customerMessage:`${paymentText} Dame un segundo que coordinamos el día y horario de retiro`, items:quotedItems, exchangeRateArs, subtotalArs, shippingCostArs:0, totalArs, reservations, bank:paymentMethod === "transferencia" ? bank : undefined, state:result.state, pausedUntil:result.pausedUntil };
         }
-        return { action:"ESPERAR_COMPROBANTE", customerMessage:`El total con envío es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}. Cuando transfieras mandame el comprobante 🙌`, ...quote, shippingCostArs, totalArs, reservation, bank };
+        return { action:"ESPERAR_COMPROBANTE", customerMessage:`El total con envío es $${money}. Podés transferir al alias ${bank.alias}, CVU ${bank.cvu}, a nombre de ${bank.holder}. Cuando transfieras mandame el comprobante 🙌`, items:quotedItems, exchangeRateArs, subtotalArs, shippingCostArs, totalArs, reservations, bank };
       }
       case "reportar_comprobante_mayorista": {
         const model = String(args.model ?? "");
