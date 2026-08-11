@@ -11,7 +11,7 @@ describe("pedido inmediato por Uber o Didi", () => {
 
   afterEach(() => vi.useRealTimers());
 
-  it("notifica cuando ya hay producto, confirmación y dirección", async () => {
+  it("manda primero a comprar por la web y no alerta antes del comprobante", async () => {
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();
     const takeover = new TakeoverService(repo, { notify });
@@ -20,15 +20,17 @@ describe("pedido inmediato por Uber o Didi", () => {
 
     const result = await tools.execute("reportar_pedido_inmediato_app", {
       channel: "whatsapp", customerId: "pedido-ya", product: "Geek Bar Pulse X Miami Mint",
-      address: "Av Siempre Viva 742", triggerMessage: message
+      address: "Av Siempre Viva 742", productUrl:"https://www.vaprizzio.com/productos/geek-bar-pulse-x1/", triggerMessage: message
     });
 
-    expect(notify).toHaveBeenCalledWith(expect.objectContaining({
-      reason: "Pedido inmediato confirmado para enviar por Uber o Didi", messages: [message],
-      products: ["Geek Bar Pulse X Miami Mint", "Dirección: Av Siempre Viva 742"]
-    }));
-    expect(result).toMatchObject({ action: "COORDINAR_ENVIO_APP", state: "WAITING_HUMAN" });
-    expect(takeover.canAiReply("whatsapp", "pedido-ya")).toBe(false);
+    expect(notify).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      action:"COMPLETAR_COMPRA_WEB",
+      productUrl:"https://www.vaprizzio.com/productos/geek-bar-pulse-x1/",
+      notificationSent:false,
+      customerMessage:expect.stringContaining("Primero hacé la compra desde la web")
+    });
+    expect(takeover.canAiReply("whatsapp", "pedido-ya")).toBe(true);
   });
 
   it("pide lo que falta sin enviar una alerta prematura", async () => {
@@ -42,7 +44,7 @@ describe("pedido inmediato por Uber o Didi", () => {
     });
 
     expect(notify).not.toHaveBeenCalled();
-    expect(result).toMatchObject({ action: "PEDIR_DATOS", requires: ["product", "address"] });
+    expect(result).toMatchObject({ action: "PEDIR_PRODUCTO", requires: ["product"] });
   });
 
   it("desde las 22 no ofrece envío inmediato ni notifica", async () => {

@@ -7,7 +7,7 @@ describe("comprobantes de compras web", () => {
   it.each([
     ["sin_definir", "empezamos a preparar tu pedido"],
     ["envio", "empezamos a preparar tu pedido"],
-    ["uber_didi", "cuando salga el vehículo"],
+    ["uber_didi", "organizar el envío con el auto"],
     ["punto_retiro", "coordinar el día y horario de retiro en el local"]
   ])("notifica, agradece y pausa para %s", async (deliveryMode, expectedText) => {
     const repo = new ConversationRepository(":memory:");
@@ -19,11 +19,30 @@ describe("comprobantes de compras web", () => {
 
     expect(notify).toHaveBeenCalledOnce();
     expect(result).toMatchObject({ action:"VERIFICAR_PAGO", state:"WAITING_HUMAN" });
-    expect(String((result as {customerMessage:string}).customerMessage)).toContain("Gracias por mandarnos el comprobante!");
+    expect(String((result as {customerMessage:string}).customerMessage)).toContain(deliveryMode === "uber_didi" ? "Gracias por tu compra!" : "Gracias por mandarnos el comprobante!");
     expect(String((result as {customerMessage:string}).customerMessage)).toContain("💜🙌");
     expect(String((result as {customerMessage:string}).customerMessage)).toContain(expectedText);
     expect(String((result as {customerMessage:string}).customerMessage)).toContain("Para cualquier cosa estamos en contacto");
     expect(takeover.canAiReply("whatsapp", `comprobante-${deliveryMode}`)).toBe(false);
+  });
+
+  it("agradece la compra y recién entonces alerta para organizar el auto", async () => {
+    const repo = new ConversationRepository(":memory:");
+    const notify = vi.fn();
+    const takeover = new TakeoverService(repo, { notify });
+    const tools = new AgentToolService({} as never, {} as never, takeover, {} as never);
+
+    const result = await tools.execute("reportar_comprobante_web", {
+      channel:"messenger", customerId:"auto-despues-web", deliveryMode:"uber_didi",
+      paymentTiming:"antes_envio", triggerMessage:"Te mando el comprobante"
+    });
+
+    expect(result).toMatchObject({
+      action:"VERIFICAR_PAGO",
+      customerMessage:"Gracias por tu compra! 💜🙌 Ahora nos vamos a comunicar para organizar el envío con el auto. Para cualquier cosa estamos en contacto 😊",
+      state:"WAITING_HUMAN"
+    });
+    expect(notify).toHaveBeenCalledOnce();
   });
 
   it("omite entrega y retiro cuando la modalidad no está definida", async () => {

@@ -21,7 +21,7 @@ export class AgentToolService {
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
     if (channel && customerId && triggerMessage && opensFreshTopic(triggerMessage)) this.takeover.resume(channel, customerId);
-    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_pedido_inmediato_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
+    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "consultar_ficha_producto", "comparar_modelos", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_negocio"]);
     const silentWhileHumanCoordinates = new Set(["consultar_entrega", "solicitar_envio_app", "reportar_consulta_post_comprobante", "evaluar_producto_fallado", "reportar_cambio_envio"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
@@ -137,7 +137,7 @@ export class AgentToolService {
           ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Para cualquier cosa estamos en contacto 😊"
           : deliveryMode === "uber_didi"
           ? paymentTiming === "antes_envio"
-            ? `${base} Nos vamos a comunicar para avisarte cuando salga el vehículo 🚗 Para cualquier cosa estamos en contacto.`
+            ? "Gracias por tu compra! 💜🙌 Ahora nos vamos a comunicar para organizar el envío con el auto. Para cualquier cosa estamos en contacto 😊"
             : `${base} Para cualquier cosa estamos en contacto 😊`
           : deliveryMode === "punto_retiro"
             ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el día y horario de retiro en el local. Para cualquier cosa estamos en contacto 😊"
@@ -177,10 +177,10 @@ export class AgentToolService {
       case "reportar_pedido_inmediato_app": {
         if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo y mañana lo despachamos" };
         const product = String(args.product ?? "").trim();
-        const address = String(args.address ?? "").trim();
-        if (!product || !address) return { action:"PEDIR_DATOS", requires:[...(!product ? ["product"] : []), ...(!address ? ["address"] : [])], customerMessage:"Decime qué vape querés y pasame la dirección" };
-        const result = await this.takeover.request(channel, customerId, "Pedido inmediato confirmado para enviar por Uber o Didi", undefined, [product, `Dirección: ${address}`]);
-        return { action:"COORDINAR_ENVIO_APP", customerMessage:"Dale, dame un segundo que coordinamos el envío por Uber o Didi", state:result.state, pausedUntil:result.pausedUntil };
+        if (!product) return { action:"PEDIR_PRODUCTO", requires:["product"], customerMessage:"Decime qué vape buscabas así te paso el enlace para comprarlo" };
+        const candidateUrl = String(args.productUrl ?? "").trim();
+        const productUrl = /^https:\/\/www\.vaprizzio\.com\/productos\//i.test(candidateUrl) ? candidateUrl : "https://www.vaprizzio.com/productos/";
+        return { action:"COMPLETAR_COMPRA_WEB", customerMessage:`Primero hacé la compra desde la web:\n${productUrl}\n\nCuando la termines, mandame el comprobante y organizamos el envío con Uber o Didi 😊`, productUrl, notificationSent:false };
       }
       case "reportar_consulta_fuera_horario": {
         if (buenosAiresHour() >= 23) return { action:"PEDIDO_MANANA", customerMessage:"Buenas! La tienda está cerrada. Nuestro horario es de 10 a 19 hs. Si querés hacer un pedido para recibirlo mañana, podés hacerlo desde nuestra web:\nhttps://www.vaprizzio.com/productos/" };
