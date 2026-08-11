@@ -25,6 +25,31 @@ describe("comparación verificada de modelos", () => {
     expect(fetch).toHaveBeenCalledTimes(2);
   });
 
+  it("consulta la ficha real para preguntas técnicas de una marca", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url:string) => new Response(
+      `<meta name="description" content="${url.includes("mixer") ? "Hasta 30.000 puffs" : "Hasta 5.000 puffs"}, según la ficha real.">`,
+      { status:200, headers:{ "content-type":"text/html" } }
+    )));
+
+    const result = await new CatalogService(fixture()).productInfo("Lost Mary");
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        brand:"Lost Mary",
+        model:"MO 5k",
+        description:"Hasta 5.000 puffs, según la ficha real.",
+        source:"tiendanube"
+      }),
+      expect.objectContaining({
+        brand:"Lost Mary",
+        model:"Mixer",
+        description:"Hasta 30.000 puffs, según la ficha real.",
+        source:"tiendanube"
+      })
+    ]);
+    expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
   it("agrega el control de frescura como dato verificado del Ice King", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(
       '<meta name="description" content="Descripción pública verificada del producto Ice King.">',

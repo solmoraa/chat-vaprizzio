@@ -53,6 +53,11 @@ export class CatalogService {
     }
     return results;
   }
+  async productInfo(query: string) {
+    const match = await this.byModel(query);
+    const models = [...new Map(match.matches.map(product => [`${normalize(product.brand)}|${normalize(product.model)}`, `${product.brand} ${product.model}`])).values()];
+    return this.compareModels(models);
+  }
   async byProfile(profile: string, limit = 3) {
     const products = await this.live(); const flavors = await this.provider.flavors(); const q = normalize(profile);
     return products.map(p => { const f = flavors.find(x => normalize(x.flavor) === normalize(p.flavor)); const score = p.profile.some(x => normalize(x).includes(q)) || normalize(f?.type ?? "").includes(q) ? 2 : Math.max(similarity(p.description, q), similarity(f?.description ?? "", q)); return { p, score }; }).filter(x => x.score >= 0.45).sort((a, b) => b.score - a.score).slice(0, limit).map(x => x.p);
