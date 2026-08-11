@@ -33,11 +33,11 @@ export class CatalogService {
   }
   async specific(model: string, flavor: string) { const m = await this.byModel(model); return m.matches.filter(p => similarity(p.flavor, flavor) >= 0.72); }
   async compareModels(queries: string[]) {
-    const results = [] as Array<{ brand:string; model:string; description:string | null; verifiedFacts:string[]; productUrl?:string; source:"tiendanube" | "unavailable" }>;
+    const results = [] as Array<{ brand:string; model:string; description:string | null; specifications:ReturnType<typeof extractProductSpecifications>; verifiedFacts:string[]; productUrl?:string; source:"tiendanube" | "unavailable" }>;
     for (const query of queries) {
       const match = await this.byModel(query);
       const product = match.matches[0];
-      if (!product) { results.push({ brand:"", model:query, description:null, verifiedFacts:[], source:"unavailable" }); continue; }
+      if (!product) { results.push({ brand:"", model:query, description:null, specifications:{}, verifiedFacts:[], source:"unavailable" }); continue; }
       const productUrl = product.productUrl;
       let description:string | null = null;
       if (productUrl) {
@@ -49,7 +49,7 @@ export class CatalogService {
       const verifiedFacts = normalize(`${product.brand} ${product.model}`).includes("ice king")
         ? ["Tiene un botón para controlar la frescura."]
         : [];
-      results.push({ brand:product.brand, model:product.model, description, verifiedFacts, ...(productUrl ? { productUrl } : {}), source:description ? "tiendanube" : "unavailable" });
+      results.push({ brand:product.brand, model:product.model, description, specifications:extractProductSpecifications(description), verifiedFacts, ...(productUrl ? { productUrl } : {}), source:description ? "tiendanube" : "unavailable" });
     }
     return results;
   }
@@ -143,4 +143,10 @@ export const extractProductDescription = (html:string):string | null => {
     } catch { /* Ignorar JSON-LD inválido y probar la siguiente fuente. */ }
   }
   return null;
+};
+
+export const extractProductSpecifications = (description:string | null):{ puffs?:string } => {
+  if (!description) return {};
+  const match = description.match(/\b((?:\d{1,3}(?:[.,]\d{3})+|\d+|mil))\s*(puffs?|pitadas?|caladas?)\b/i);
+  return match ? { puffs:`${match[1]} ${match[2]}` } : {};
 };

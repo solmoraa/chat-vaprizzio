@@ -44,7 +44,7 @@ for (const name of alertToolNames) {
   if (schema?.properties) schema.properties.triggerMessage = string({ description:"Texto exacto del último mensaje del cliente que dispara esta acción" });
 }
 const descriptions: Record<string, string> = {
-  consultar_ficha_producto:"OBLIGATORIA ante cualquier pregunta sobre puffs, bateria, pantalla, carga, modos, controles, nicotina o caracteristicas de un producto o marca. Lee la descripcion real de Tiendanube. Nunca deduzcas datos desde el nombre del modelo.",
+  consultar_ficha_producto:"OBLIGATORIA ante cualquier pregunta sobre puffs, bateria, pantalla, carga, modos, controles, nicotina o caracteristicas de un producto o marca. Lee la descripcion real de Tiendanube. Para puffs copia literalmente products[].specifications.puffs, sin convertir ni reinterpretar el valor. Nunca deduzcas datos desde el nombre del modelo.",
   comparar_modelos:"Compara modelos o marcas usando exclusivamente las descripciones verificadas de sus fichas públicas de Tiendanube. Nunca inventes diferencias si falta una descripción.",
   reportar_llegada_retiro:"OBLIGATORIA cuando un cliente llega o está por llegar para retirar una compra. Notifica a Telegram como retiro de venta, nunca como cambio.",
   reportar_recordatorio_afuera:"OBLIGATORIA si un cliente que ya avisó que está afuera vuelve a insistir o apura. Reenvía siempre una alerta mucho más urgente a Telegram.",
