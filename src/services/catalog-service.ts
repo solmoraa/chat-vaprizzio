@@ -147,6 +147,9 @@ export const extractProductDescription = (html:string):string | null => {
 
 export const extractProductSpecifications = (description:string | null):{ puffs?:string } => {
   if (!description) return {};
-  const match = description.match(/\b((?:\d{1,3}(?:[.,]\d{3})+|\d+|mil))\s*(puffs?|pitadas?|caladas?)\b/i);
-  return match ? { puffs:`${match[1]} ${match[2]}` } : {};
+  const match = description.match(/\b((?:\d+\s*mil|\d{1,3}(?:[.,]\d{3})+|\d+|mil))\s*(puffs?|pitadas?|caladas?)\b/i);
+  if (!match) return {};
+  const rawAmount = match[1]!.replace(/\s+/g, "").toLowerCase();
+  const amount = rawAmount === "mil" || rawAmount === "1mil" ? "1.000" : rawAmount;
+  return { puffs:`${amount} ${match[2]}` };
 };

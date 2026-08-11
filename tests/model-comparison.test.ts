@@ -12,7 +12,9 @@ describe("comparación verificada de modelos", () => {
 
   it("conserva literalmente la cantidad de pitadas de la descripción", () => {
     expect(extractProductSpecifications("Vape Ignite v-nano de mil pitadas con batería integrada."))
-      .toEqual({ puffs:"mil pitadas" });
+      .toEqual({ puffs:"1.000 pitadas" });
+    expect(extractProductSpecifications("Ofrece 1mil pitadas, una vapeada suave y constante."))
+      .toEqual({ puffs:"1.000 pitadas" });
     expect(extractProductSpecifications("Equipo de hasta 25.000 puffs con pantalla."))
       .toEqual({ puffs:"25.000 puffs" });
   });
