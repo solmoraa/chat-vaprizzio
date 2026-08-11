@@ -45,7 +45,7 @@ export function createApp(d: AppDependencies) {
   const receiveMetaWebhook: express.RequestHandler = (req, res) => {
     const raw = req.body as Buffer;
     if (!verifyMetaSignature(raw, req.header("x-hub-signature-256"), d.config.META_APP_SECRET)) return res.sendStatus(401);
-    const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: Array<{ sender?: { id?: string }; recipient?: { id?: string }; message?: { text?: string; is_echo?: boolean; app_id?: string | number } }> }> };
+    const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: Array<{ sender?: { id?: string }; recipient?: { id?: string }; message?: { text?: string; is_echo?: boolean; app_id?: string | number; attachments?: Array<{ type?: string; payload?: { url?: string } }> } }> }> };
     const channel: Channel = body.object === "page" ? "messenger" : "instagram";
     for (const event of body.entry?.flatMap(x => x.messaging ?? []) ?? []) {
       if (event.message?.is_echo) {
@@ -54,7 +54,13 @@ export function createApp(d: AppDependencies) {
         if (customerId) d.takeover.humanMessage(channel, customerId, event.message.text ?? "[mensaje multimedia]");
         continue;
       }
-      const customerId = event.sender?.id; const text = event.message?.text;
+      const customerId = event.sender?.id;
+      const attachments = event.message?.attachments ?? [];
+      const attachmentText = attachments.map(item => {
+        const label = item.type === "image" ? "imagen" : item.type === "video" ? "video" : item.type === "audio" ? "audio" : "archivo";
+        return `[El cliente envió ${label}${item.payload?.url ? `: ${item.payload.url}` : ""}]`;
+      }).join("\n");
+      const text = [event.message?.text?.trim(), attachmentText].filter(Boolean).join("\n");
       if (!customerId || !text) continue;
       const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(text); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
       if (!d.takeover.canAiReply(channel, customerId)) continue;
