@@ -5,14 +5,7 @@ import type { TakeoverService } from "../services/takeover-service.js";
 import type { Channel } from "../domain/types.js";
 import { DeliveryService, buenosAiresHour } from "../services/delivery-service.js";
 import type { ConversationRepository } from "../database/conversation-repository.js";
-
-const opensFreshTopic = (value: string) => {
-  const text = value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9!? ]/g, " ").replace(/\s+/g, " ").trim();
-  const greeting = /^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)(\b|[!?])/.test(text);
-  const continuation = /\b(mi pedido|mi comprobante|ese envio|el envio que|el uber que|el didi que|lo de antes|lo anterior|seguimos con|sigo con)\b/.test(text);
-  return greeting && !continuation;
-};
+import { opensFreshTopic } from "../services/fresh-topic.js";
 
 export class AgentToolService {
   constructor(readonly catalog: CatalogService, readonly cart: CartService, readonly takeover: TakeoverService, readonly sales: SalesService, readonly delivery = new DeliveryService(), readonly conversations?: ConversationRepository) {}

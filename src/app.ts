@@ -10,6 +10,7 @@ import type { TakeoverService } from "./services/takeover-service.js";
 import { verifyMetaSignature } from "./channels/instagram/signature.js";
 import type { InstagramClient } from "./channels/instagram/client.js";
 import type { Channel } from "./domain/types.js";
+import { opensFreshTopic } from "./services/fresh-topic.js";
 
 export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send">; }
 
@@ -63,6 +64,7 @@ export function createApp(d: AppDependencies) {
       const text = [event.message?.text?.trim(), attachmentText].filter(Boolean).join("\n");
       if (!customerId || !text) continue;
       const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(text); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
+      if (opensFreshTopic(text)) d.takeover.resume(channel, customerId);
       if (!d.takeover.canAiReply(channel, customerId)) continue;
       d.debounce.push(`${channel}:${customerId}`, text, async messages => {
         if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
@@ -81,6 +83,7 @@ export function createApp(d: AppDependencies) {
     const { channel, customerId, message } = req.body as { channel: "whatsapp"; customerId: string; message: string };
     if (channel !== "whatsapp" || !customerId || !message) return res.sendStatus(400);
     const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(message); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
+    if (opensFreshTopic(message)) d.takeover.resume(channel, customerId);
     const accept = d.takeover.canAiReply(channel, customerId);
     if (accept) d.debounce.push(`${channel}:${customerId}`, message, messages => d.openclaw.dispatch(channel, customerId, messages));
     res.json({ accept, queued: accept, state: accept ? "AI_ACTIVE" : c.state });
