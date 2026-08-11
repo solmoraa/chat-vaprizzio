@@ -15,7 +15,7 @@
     token: "${OPENCLAW_HOOK_TOKEN}",
     path: "/hooks",
     allowRequestSessionKey: false,
-    allowedSessionKeyPrefixes: ["whatsapp:", "instagram:"]
+    allowedSessionKeyPrefixes: ["whatsapp:", "instagram:", "messenger:"]
   },
   plugins: { entries: { "vaprizzio-tools": { enabled: true, config: { baseUrl: "http://127.0.0.1:3000" } } } },
   // Agregar estas herramientas solo en agents.entries[vaprizzio-sales-test].tools.allow.

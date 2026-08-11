@@ -4,7 +4,7 @@ const string = (extra: Record<string, unknown> = {}) => ({ type:"string", ...ext
 const integer = (extra: Record<string, unknown> = {}) => ({ type:"integer", ...extra });
 const boolean = () => ({ type:"boolean" });
 const object = (properties: Record<string, unknown>) => ({ type:"object", additionalProperties:false, properties, required:Object.keys(properties) });
-const identity = { channel: string({ enum:["whatsapp","instagram"] }), customerId: string({ minLength:1 }) };
+const identity = { channel: string({ enum:["whatsapp","instagram","messenger"] }), customerId: string({ minLength:1 }) };
 const schemas: Record<string, object> = {
   buscar_sabor:object({...identity,query:string()}), buscar_modelo:object({...identity,query:string()}),
   buscar_producto:object({...identity,model:string(),flavor:string()}), buscar_por_perfil:object({...identity,profile:string()}),
@@ -145,7 +145,7 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
     const channel = String(ctx?.channel ?? ctx?.messageProvider ?? "");
     const customerId = String(ctx?.senderId ?? "");
     const rules: string[] = [];
-    if (freshTopic && ["whatsapp", "instagram"].includes(channel) && customerId) {
+    if (freshTopic && ["whatsapp", "instagram", "messenger"].includes(channel) && customerId) {
       const config=(event?.context?.pluginConfig ?? (api as unknown as {pluginConfig?:{baseUrl?:string;apiToken?:string}}).pluginConfig) as {baseUrl?:string;apiToken?:string} | undefined;
       const baseUrl=config?.baseUrl ?? "http://127.0.0.1:3000";
       const response=await fetch(`${baseUrl}/api/tools/iniciar_nuevo_tema`, {
