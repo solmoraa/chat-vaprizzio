@@ -18,4 +18,12 @@ describe("respuesta de OpenClaw para Instagram", () => {
     ]));
     expect(runner.mock.calls[0]![1]).toContain("[Canal: instagram]\n[CustomerId: ig-123]\nhola\ntenés Miami Mint?");
   });
+  it("lee el texto desde result.payloads en versiones nuevas de OpenClaw", async () => {
+    const runner = vi.fn().mockResolvedValue({
+      stdout:'{"status":"ok","result":{"payloads":[{"text":"Hola! Buscabas algun vape?","mediaUrl":null}]}}'
+    });
+    const client = new OpenClawClient("http://127.0.0.1:18789", "token", "vaprizzio-sales-test", "openclaw", runner);
+
+    await expect(client.reply("messenger", "fb-123", ["hola"])).resolves.toBe("Hola! Buscabas algun vape?");
+  });
 });

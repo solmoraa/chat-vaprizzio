@@ -29,7 +29,10 @@ export class OpenClawClient {
     if (start < 0) throw new Error("OPENCLAW_REPLY_INVALID_JSON");
     const payload = JSON.parse(stdout.slice(start)) as Record<string, unknown>;
     const result = payload.result as Record<string, unknown> | undefined;
-    const text = [payload.finalAssistantVisibleText, payload.finalAssistantRawText, result?.finalAssistantVisibleText, result?.finalAssistantRawText]
+    const resultPayloads = Array.isArray(result?.payloads)
+      ? result.payloads as Array<Record<string, unknown>>
+      : [];
+    const text = [payload.finalAssistantVisibleText, payload.finalAssistantRawText, result?.finalAssistantVisibleText, result?.finalAssistantRawText, ...resultPayloads.map(item => item.text)]
       .find(value => typeof value === "string" && value.trim());
     if (typeof text !== "string") throw new Error("OPENCLAW_REPLY_EMPTY");
     return text.trim();
