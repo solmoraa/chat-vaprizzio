@@ -8,4 +8,13 @@ describe("opciones de entrega", () => {
   it("después de las 13 ofrece Didi o Uber sin inventar precio", () => expect(service.flex("CABA", new Date("2026-08-09T17:00:00Z"))).toMatchObject({ action:"OFRECER_APP" }));
   it("desde las 22 programa el despacho para el día siguiente", () => expect(service.flex("CABA", new Date("2026-08-10T01:00:00Z"))).toMatchObject({ action:"PROGRAMAR_MANANA", customerMessage:expect.stringContaining("mañana") }));
   it("pide ubicación cuando no reconoce la zona", () => expect(service.flex("Lugar desconocido", new Date("2026-08-09T14:00:00Z"))).toMatchObject({ action:"PEDIR_LOCALIDAD" }));
+  it("después de las 13 lista Flex para mañana y Uber/Didi para hoy", () => {
+    expect(service.options(new Date("2026-08-09T17:00:00Z"))).toMatchObject({
+      sameDayFlexAvailable:false,
+      flex:{ dispatch:"MANANA", reason:"CORTE_13HS" },
+      uberDidi:{ availableToday:true },
+      national:{ carriers:["Andreani", "Correo Argentino", "Via Cargo"] }
+    });
+  });
+  it("antes de las 13 permite Flex en el día", () => expect(service.options(new Date("2026-08-09T14:00:00Z"))).toMatchObject({ sameDayFlexAvailable:true, flex:{ dispatch:"HOY" } }));
 });

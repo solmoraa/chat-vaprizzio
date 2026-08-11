@@ -41,6 +41,7 @@ export class AgentToolService {
       case "consultar_negocio": return { value: await this.catalog.business(String(args.key)) };
       case "consultar_entrega": {
         const method = String(args.method ?? "").toLowerCase();
+        if (method === "opciones") return this.delivery.options();
         if (method === "retiro") return this.delivery.pickup();
         if (method === "flex") return this.delivery.flex(String(args.locality ?? ""));
         if (method === "nacional") return { action: "COTIZAR_TIENDANUBE", requires: ["address", "postalCode"], carriers: ["Andreani", "Correo Argentino", "Vía Cargo"] };

@@ -15,6 +15,22 @@ export const buenosAiresHour = (now = new Date()) => Number(new Intl.DateTimeFor
 export class DeliveryService {
   pickup() { return { method: "RETIRO", price: 0, address: "Av. Larrazábal 3437, Villa Lugano, CABA" }; }
 
+  options(now = new Date()) {
+    const hour = buenosAiresHour(now);
+    return {
+      currentHour: hour,
+      sameDayFlexAvailable: hour < 13,
+      flex: hour < 13
+        ? { dispatch: "HOY", cutoff: "13:00", deliveryWindow: "16 a 20 hs", prices: zonePrices, payment: "TRANSFERENCIA_ANTICIPADA" }
+        : { dispatch: "MANANA", reason: "CORTE_13HS", prices: zonePrices, payment: "TRANSFERENCIA_ANTICIPADA" },
+      uberDidi: hour < 22
+        ? { availableToday: true, price: "CONSULTAR_EN_EL_MOMENTO", payment: "TRANSFERENCIA" }
+        : { availableToday: false, dispatch: "MANANA" },
+      national: { requires: ["address", "postalCode"], carriers: ["Andreani", "Correo Argentino", "Via Cargo"] },
+      pickup: this.pickup()
+    };
+  }
+
   flex(locality: string, now = new Date()) {
     const query = normalize(locality);
     const zone = (Object.entries(locations) as Array<[DeliveryZone, string[]]>).find(([, names]) => names.some(name => normalize(name) === query))?.[0];
