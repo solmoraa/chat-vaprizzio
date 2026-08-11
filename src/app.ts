@@ -9,6 +9,7 @@ import type { OpenClawClient } from "./agent/openclaw-client.js";
 import type { TakeoverService } from "./services/takeover-service.js";
 import { verifyMetaSignature } from "./channels/instagram/signature.js";
 import type { InstagramClient } from "./channels/instagram/client.js";
+import type { Channel } from "./domain/types.js";
 
 export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send">; }
 
@@ -34,27 +35,34 @@ export function createApp(d: AppDependencies) {
     catch (error) { req.log.error({ err: error, tool: toolName }, "tool_failed"); res.status(400).json({ ok: false, error: error instanceof Error ? error.message : "UNKNOWN_ERROR" }); }
   });
 
-  app.get("/webhooks/instagram", (req, res) => {
+  const verifyMetaWebhook: express.RequestHandler = (req, res) => {
     if (req.query["hub.mode"] === "subscribe" && req.query["hub.verify_token"] === d.config.META_VERIFY_TOKEN) return res.status(200).send(String(req.query["hub.challenge"] ?? ""));
     return res.sendStatus(403);
-  });
-  app.post("/webhooks/instagram", express.raw({ type: "application/json", limit: "256kb" }), (req, res) => {
+  };
+  app.get("/webhooks/instagram", verifyMetaWebhook);
+  app.get("/webhooks/meta", verifyMetaWebhook);
+
+  const receiveMetaWebhook: express.RequestHandler = (req, res) => {
     const raw = req.body as Buffer;
     if (!verifyMetaSignature(raw, req.header("x-hub-signature-256"), d.config.META_APP_SECRET)) return res.sendStatus(401);
-    const body = JSON.parse(raw.toString("utf8")) as { entry?: Array<{ messaging?: Array<{ sender?: { id?: string }; message?: { text?: string; is_echo?: boolean } }> }> };
+    const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: Array<{ sender?: { id?: string }; message?: { text?: string; is_echo?: boolean } }> }> };
+    const channel: Channel = body.object === "page" ? "messenger" : "instagram";
     for (const event of body.entry?.flatMap(x => x.messaging ?? []) ?? []) {
       const customerId = event.sender?.id; const text = event.message?.text;
       if (!customerId || !text || event.message?.is_echo) continue;
-      const c = d.conversations.getOrCreate("instagram", customerId); c.lastMessages.push(text); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
-      if (!d.takeover.canAiReply("instagram", customerId)) continue;
-      d.debounce.push(`instagram:${customerId}`, text, async messages => {
+      const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(text); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
+      if (!d.takeover.canAiReply(channel, customerId)) continue;
+      d.debounce.push(`${channel}:${customerId}`, text, async messages => {
         if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
-        const reply = await d.openclaw.reply("instagram", customerId, messages);
+        const reply = await d.openclaw.reply(channel, customerId, messages);
         await d.instagram.send(customerId, reply);
       });
     }
     res.sendStatus(200);
-  });
+  };
+  const metaBody = express.raw({ type: "application/json", limit: "256kb" });
+  app.post("/webhooks/instagram", metaBody, receiveMetaWebhook);
+  app.post("/webhooks/meta", metaBody, receiveMetaWebhook);
 
   app.post("/webhooks/openclaw/inbound", express.json({ limit: "64kb" }), (req, res) => {
     if (req.header("authorization") !== `Bearer ${d.config.OPENCLAW_HOOK_TOKEN}`) return res.sendStatus(401);
@@ -70,9 +78,9 @@ export function createApp(d: AppDependencies) {
     if (!d.config.INTERNAL_WEBHOOK_SECRET || req.header("x-internal-secret") !== d.config.INTERNAL_WEBHOOK_SECRET) return res.sendStatus(401);
     const { command, channel, customerId, text, quantity, unitPrice, conditions } = req.body as Record<string, unknown>;
     try {
-      if (command === "resume") return res.json(d.takeover.resume(channel as "whatsapp" | "instagram", String(customerId)));
-      if (command === "human_message") return res.json(d.takeover.humanMessage(channel as "whatsapp" | "instagram", String(customerId), String(text ?? "")));
-      if (command === "set_negotiated_price") { const c = d.conversations.setNegotiatedPrice(channel as "whatsapp" | "instagram", String(customerId), { quantity: Number(quantity), unitPrice: Number(unitPrice), conditions: String(conditions ?? ""), timestamp: new Date().toISOString() }); return res.json(c); }
+      if (command === "resume") return res.json(d.takeover.resume(channel as Channel, String(customerId)));
+      if (command === "human_message") return res.json(d.takeover.humanMessage(channel as Channel, String(customerId), String(text ?? "")));
+      if (command === "set_negotiated_price") { const c = d.conversations.setNegotiatedPrice(channel as Channel, String(customerId), { quantity: Number(quantity), unitPrice: Number(unitPrice), conditions: String(conditions ?? ""), timestamp: new Date().toISOString() }); return res.json(c); }
       return res.status(400).json({ error: "UNKNOWN_COMMAND" });
     } catch (error) { return res.status(400).json({ error: error instanceof Error ? error.message : "UNKNOWN_ERROR" }); }
   });
