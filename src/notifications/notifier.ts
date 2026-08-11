@@ -1,10 +1,11 @@
 export interface HumanNotification { channel: string; customerId: string; quantity?: number; products?: string[]; messages: string[]; reason: string; }
 export interface HumanNotifier { notify(value: HumanNotification): Promise<void>; }
+export type CustomerNameResolver = (channel:string, customerId:string) => Promise<string | null>;
 export class ConsoleNotifier implements HumanNotifier { async notify(value: HumanNotification) { console.info(JSON.stringify({ event: "human_notification", ...value })); } }
 export class TelegramNotifier implements HumanNotifier {
   private readonly chatIds: string[];
 
-  constructor(private readonly token: string, chatIds: string | string[]) {
+  constructor(private readonly token: string, chatIds: string | string[], private readonly resolveCustomerName?: CustomerNameResolver) {
     this.chatIds = (Array.isArray(chatIds) ? chatIds : chatIds.split(","))
       .map((chatId) => chatId.trim())
       .filter(Boolean);
@@ -26,8 +27,10 @@ export class TelegramNotifier implements HumanNotifier {
 
   async notify(v: HumanNotification) {
     if (!this.token || this.chatIds.length === 0) throw new Error("TELEGRAM_NOT_CONFIGURED");
+    const resolvedName = await this.resolveCustomerName?.(v.channel, v.customerId);
+    const customer = resolvedName ? `${resolvedName} (ID: ${v.customerId})` : v.customerId;
     const latestMessage = (v.messages.at(-1)?.trim() || "No disponible").replace(/\b\d{16,24}\b/g, value => `***${value.slice(-4)}`);
-    const text = [`INTERVENCION HUMANA`, `Canal: ${v.channel}`, `Cliente: ${v.customerId}`, v.quantity ? `Cantidad: ${v.quantity}` : "", v.products?.length ? `Productos: ${v.products.join(", ")}` : "", `Motivo: ${v.reason}`, `Mensaje del cliente: ${latestMessage}`].filter(Boolean).join("\n");
+    const text = [`INTERVENCION HUMANA`, `Canal: ${v.channel}`, `Cliente: ${customer}`, v.quantity ? `Cantidad: ${v.quantity}` : "", v.products?.length ? `Productos: ${v.products.join(", ")}` : "", `Motivo: ${v.reason}`, `Mensaje del cliente: ${latestMessage}`].filter(Boolean).join("\n");
     const results = await Promise.allSettled(this.chatIds.map(chatId => this.send(chatId, text)));
     const failures = results.filter((result) => result.status === "rejected");
     if (failures.length > 0) throw new AggregateError(failures.map((failure) => failure.reason), `TELEGRAM_DELIVERY_FAILED:${failures.length}`);

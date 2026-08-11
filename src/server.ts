@@ -24,8 +24,9 @@ const provider = config.CATALOG_PROVIDER === "sheets"
   : new FixtureCatalogProvider(products as Product[], flavors as Flavor[], wholesale as WholesaleTier[], { envios: "Configurar en pestaña NEGOCIO" });
 if (config.APP_ENV === "production" && config.GOOGLE_SERVICE_ACCOUNT_FILE && (statSync(config.GOOGLE_SERVICE_ACCOUNT_FILE).mode & 0o077) !== 0) throw new Error("PRODUCTION_BLOCKED: la credencial de Google debe tener permisos 600");
 const conversations = new ConversationRepository(config.DATABASE_PATH, config.CONVERSATION_IDLE_MINUTES, config.CONVERSATION_RETENTION_DAYS);
-const notifier = config.TELEGRAM_BOT_TOKEN && config.HUMAN_NOTIFICATION_CHAT_ID ? new TelegramNotifier(config.TELEGRAM_BOT_TOKEN, config.HUMAN_NOTIFICATION_CHAT_ID) : new ConsoleNotifier();
+const instagram = new InstagramClient(config.META_ACCESS_TOKEN, config.META_GRAPH_VERSION);
+const notifier = config.TELEGRAM_BOT_TOKEN && config.HUMAN_NOTIFICATION_CHAT_ID ? new TelegramNotifier(config.TELEGRAM_BOT_TOKEN, config.HUMAN_NOTIFICATION_CHAT_ID, (channel, customerId) => instagram.customerName(channel, customerId)) : new ConsoleNotifier();
 const takeover = new TakeoverService(conversations, notifier);
 const tools = new AgentToolService(new CatalogService(provider), new CartService(conversations), takeover, new SalesService(provider, conversations, config.SALE_CONFIRMATION_MODE), undefined, conversations);
-const app = createApp({ config, tools, conversations, takeover, debounce: new MessageDebouncer(config.DEBOUNCE_MS), openclaw: new OpenClawClient(config.OPENCLAW_BASE_URL, config.OPENCLAW_HOOK_TOKEN, config.OPENCLAW_AGENT_ID, config.OPENCLAW_CLI_PATH), instagram:new InstagramClient(config.META_ACCESS_TOKEN, config.META_GRAPH_VERSION) });
+const app = createApp({ config, tools, conversations, takeover, debounce: new MessageDebouncer(config.DEBOUNCE_MS), openclaw: new OpenClawClient(config.OPENCLAW_BASE_URL, config.OPENCLAW_HOOK_TOKEN, config.OPENCLAW_AGENT_ID, config.OPENCLAW_CLI_PATH), instagram });
 app.listen(config.PORT, config.HOST, () => console.info(`Vaprizzio ${config.APP_ENV} listening on ${config.HOST}:${config.PORT}`));

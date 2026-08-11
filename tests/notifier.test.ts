@@ -39,4 +39,14 @@ describe("TelegramNotifier", () => {
     expect(attempts.get("1566518876")).toBe(1);
     expect(request).toHaveBeenCalledTimes(3);
   });
+
+  it("muestra el usuario de Meta en la alerta", async () => {
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status:200 }));
+    const resolver = vi.fn().mockResolvedValue("@cliente_vaprizzio");
+    const notifier = new TelegramNotifier("token-test", "6579754152", resolver);
+    await notifier.notify({ channel:"instagram", customerId:"17890001", reason:"consulta", messages:["hola"] });
+    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body)).text as string;
+    expect(body).toContain("Cliente: @cliente_vaprizzio (ID: 17890001)");
+    expect(resolver).toHaveBeenCalledWith("instagram", "17890001");
+  });
 });
