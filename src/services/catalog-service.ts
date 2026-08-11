@@ -40,16 +40,21 @@ export class CatalogService {
       if (!product) { results.push({ brand:"", model:query, description:null, specifications:{}, verifiedFacts:[], source:"unavailable" }); continue; }
       const productUrl = product.productUrl;
       let description:string | null = null;
+      let specifications:ReturnType<typeof extractProductSpecifications> = {};
       if (productUrl) {
         try {
           const response = await fetch(productUrl, { signal:AbortSignal.timeout(8_000), headers:{ accept:"text/html" } });
-          if (response.ok) description = extractProductDescription(await response.text());
+          if (response.ok) {
+            const html = await response.text();
+            description = extractProductDescription(html);
+            specifications = extractProductSpecifications(decodeHtml(html));
+          }
         } catch { description = null; }
       }
       const verifiedFacts = normalize(`${product.brand} ${product.model}`).includes("ice king")
         ? ["Tiene un botón para controlar la frescura."]
         : [];
-      results.push({ brand:product.brand, model:product.model, description, specifications:extractProductSpecifications(description), verifiedFacts, ...(productUrl ? { productUrl } : {}), source:description ? "tiendanube" : "unavailable" });
+      results.push({ brand:product.brand, model:product.model, description, specifications, verifiedFacts, ...(productUrl ? { productUrl } : {}), source:description ? "tiendanube" : "unavailable" });
     }
     return results;
   }

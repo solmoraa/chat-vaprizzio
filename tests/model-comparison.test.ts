@@ -19,6 +19,22 @@ describe("comparación verificada de modelos", () => {
       .toEqual({ puffs:"25.000 puffs" });
   });
 
+  it("encuentra los puffs en el cuerpo aunque el resumen no los mencione", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(`
+      <html>
+        <head><meta name="description" content="Ignite v-nano compacto y eficiente."></head>
+        <body><section class="product-description">Ofrece 1mil pitadas, una vapeada suave y constante.</section></body>
+      </html>
+    `, { status:200, headers:{ "content-type":"text/html" } })));
+
+    const result = await new CatalogService(fixture()).compareModels(["Lost Mary MO 5k"]);
+
+    expect(result[0]).toMatchObject({
+      description:"Ignite v-nano compacto y eficiente.",
+      specifications:{ puffs:"1.000 pitadas" }
+    });
+  });
+
   it("compara usando las descripciones de las URLs reales", async () => {
     vi.stubGlobal("fetch", vi.fn(async (url:string) => new Response(
       `<meta name="description" content="Descripción verificada para ${url.includes("mixer") ? "Mixer" : "MO 5k"} desde Tiendanube.">`,
