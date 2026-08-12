@@ -1,5 +1,6 @@
 export class InstagramClient {
   private readonly profiles = new Map<string, { value:string; expiresAt:number }>();
+  private readonly automatedEchoes = new Map<string, number>();
   constructor(
     private readonly pageAccessToken: string,
     private readonly graphVersion: string,
@@ -11,6 +12,15 @@ export class InstagramClient {
       return { token:this.instagramAccessToken, origin:"https://graph.instagram.com" };
     }
     return { token:this.pageAccessToken, origin:"https://graph.facebook.com" };
+  }
+  private echoKey(channel: string, recipientId: string, text: string) {
+    return `${channel}:${recipientId}:${text.trim()}`;
+  }
+  isAutomatedEcho(channel: string, recipientId: string, text: string) {
+    const key = this.echoKey(channel, recipientId, text);
+    const expiresAt = this.automatedEchoes.get(key) ?? 0;
+    this.automatedEchoes.delete(key);
+    return expiresAt > Date.now();
   }
   async customerName(channel: string, customerId: string) {
     if (!["instagram", "messenger"].includes(channel)) return null;
@@ -46,6 +56,7 @@ export class InstagramClient {
         const detail = (await res.text()).replace(/\s+/g, " ").slice(0, 500);
         throw new Error(`${channel.toUpperCase()}_SEND_ERROR:${res.status}:${detail}`);
       }
+      this.automatedEchoes.set(this.echoKey(channel, recipientId, block), Date.now() + 5 * 60_000);
     }
   }
 }

@@ -12,7 +12,7 @@ import type { InstagramClient } from "./channels/instagram/client.js";
 import type { Channel } from "./domain/types.js";
 import { opensFreshTopic } from "./services/fresh-topic.js";
 
-export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send">; }
+export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send" | "isAutomatedEcho">; }
 
 export function createApp(d: AppDependencies) {
   const app = express();
@@ -52,7 +52,9 @@ export function createApp(d: AppDependencies) {
       if (event.message?.is_echo) {
         if (event.message.app_id != null) continue;
         const customerId = event.recipient?.id;
-        if (customerId) d.takeover.humanMessage(channel, customerId, event.message.text ?? "[mensaje multimedia]");
+        const echoText = event.message.text ?? "[mensaje multimedia]";
+        if (customerId && d.instagram?.isAutomatedEcho(channel, customerId, echoText)) continue;
+        if (customerId) d.takeover.humanMessage(channel, customerId, echoText);
         continue;
       }
       const customerId = event.sender?.id;
