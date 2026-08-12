@@ -15,10 +15,10 @@ function buildApp() {
   return createApp({
     config,
     tools:{ catalog:{ priceList:vi.fn() }, execute:vi.fn() } as never,
-    conversations:{ getOrCreate:vi.fn(), save:vi.fn() } as never,
+    conversations:{ getOrCreate:vi.fn().mockReturnValue({ lastMessages:[], lastActivity:"" }), save:vi.fn() } as never,
     debounce:{ push:vi.fn() } as never,
     openclaw:{} as never,
-    takeover:{} as never,
+    takeover:{ resume:vi.fn(), canAiReply:vi.fn().mockReturnValue(true), humanMessage:vi.fn() } as never,
   });
 }
 
@@ -46,5 +46,10 @@ describe("firmas separadas de Meta", () => {
   it("mantiene Messenger con la clave general de Meta", async () => {
     const body = JSON.stringify({ object:"page", entry:[] });
     expect((await post(body, "messenger-secret")).status).toBe(200);
+  });
+
+  it("acepta eventos de Instagram dentro de changes.value", async () => {
+    const body = JSON.stringify({ object:"instagram", entry:[{ changes:[{ field:"messages", value:{ sender:{ id:"cliente" }, recipient:{ id:"cuenta" }, message:{ text:"Hola" } } }] }] });
+    expect((await post(body, "instagram-secret")).status).toBe(200);
   });
 });

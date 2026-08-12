@@ -45,13 +45,20 @@ export function createApp(d: AppDependencies) {
 
   const receiveMetaWebhook: express.RequestHandler = (req, res) => {
     const raw = req.body as Buffer;
-    const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: Array<{ sender?: { id?: string }; recipient?: { id?: string }; message?: { text?: string; is_echo?: boolean; app_id?: string | number; attachments?: Array<{ type?: string; payload?: { url?: string } }> } }> }> };
+    type MetaEvent = { sender?: { id?: string }; recipient?: { id?: string }; message?: { text?: string; is_echo?: boolean; app_id?: string | number; attachments?: Array<{ type?: string; payload?: { url?: string } }> } };
+    type MetaChangeValue = MetaEvent & { messaging?: MetaEvent[] };
+    const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: MetaEvent[]; changes?: Array<{ field?:string; value?:MetaChangeValue }> }> };
     const signatureSecret = body.object === "page"
       ? d.config.META_APP_SECRET
       : d.config.META_INSTAGRAM_APP_SECRET || d.config.META_APP_SECRET;
     if (!verifyMetaSignature(raw, req.header("x-hub-signature-256"), signatureSecret)) return res.sendStatus(401);
     const channel: Channel = body.object === "page" ? "messenger" : "instagram";
-    for (const event of body.entry?.flatMap(x => x.messaging ?? []) ?? []) {
+    const events = body.entry?.flatMap(entry => [
+      ...(entry.messaging ?? []),
+      ...(entry.changes ?? []).flatMap(change => change.value?.messaging ?? (change.value ? [change.value] : [])),
+    ]) ?? [];
+    req.log.info({ channel, eventCount:events.length }, "meta_webhook_received");
+    for (const event of events) {
       if (event.message?.is_echo) {
         if (event.message.app_id != null) continue;
         const customerId = event.recipient?.id;
