@@ -45,8 +45,14 @@ export function createApp(d: AppDependencies) {
 
   const receiveMetaWebhook: express.RequestHandler = (req, res) => {
     const raw = req.body as Buffer;
-    type MetaEvent = { sender?: { id?: string }; recipient?: { id?: string }; message?: { text?: string; is_echo?: boolean; app_id?: string | number; attachments?: Array<{ type?: string; payload?: { url?: string } }> } };
-    type MetaChangeValue = MetaEvent & { messaging?: MetaEvent[] };
+    type MetaMessage = { text?: string; is_echo?: boolean; app_id?: string | number; attachments?: Array<{ type?: string; payload?: { url?: string } }> };
+    type MetaEvent = {
+      sender?: { id?: string }; recipient?: { id?: string };
+      from?: { id?: string }; to?: { id?: string };
+      sender_id?: string; recipient_id?: string;
+      message?: MetaMessage; text?: string;
+    };
+    type MetaChangeValue = MetaEvent & { messaging?: MetaEvent[]; messages?: MetaEvent[] };
     const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: MetaEvent[]; changes?: Array<{ field?:string; value?:MetaChangeValue }> }> };
     const signatureSecret = body.object === "page"
       ? d.config.META_APP_SECRET
@@ -55,7 +61,13 @@ export function createApp(d: AppDependencies) {
     const channel: Channel = body.object === "page" ? "messenger" : "instagram";
     const events = body.entry?.flatMap(entry => [
       ...(entry.messaging ?? []),
-      ...(entry.changes ?? []).flatMap(change => change.value?.messaging ?? (change.value ? [change.value] : [])),
+      ...(entry.changes ?? []).flatMap(change => {
+        const value = change.value;
+        if (!value) return [];
+        if (value.messaging?.length) return value.messaging;
+        if (value.messages?.length) return value.messages;
+        return [value];
+      }),
     ]) ?? [];
     req.log.info({ channel, eventCount:events.length }, "meta_webhook_received");
     for (const event of events) {
@@ -67,21 +79,23 @@ export function createApp(d: AppDependencies) {
         if (customerId) d.takeover.humanMessage(channel, customerId, echoText);
         continue;
       }
-      const customerId = event.sender?.id;
+      const customerId = event.sender?.id ?? event.from?.id ?? event.sender_id;
       const attachments = event.message?.attachments ?? [];
       const attachmentText = attachments.map(item => {
         const label = item.type === "image" ? "imagen" : item.type === "video" ? "video" : item.type === "audio" ? "audio" : "archivo";
         return `[El cliente envió ${label}${item.payload?.url ? `: ${item.payload.url}` : ""}]`;
       }).join("\n");
-      const text = [event.message?.text?.trim(), attachmentText].filter(Boolean).join("\n");
+      const text = [event.message?.text?.trim() ?? event.text?.trim(), attachmentText].filter(Boolean).join("\n");
       if (!customerId || !text) continue;
       const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(text); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
       if (opensFreshTopic(text)) d.takeover.resume(channel, customerId);
-      if (!d.takeover.canAiReply(channel, customerId)) continue;
+      if (!d.takeover.canAiReply(channel, customerId)) { req.log.info({ channel }, "meta_message_paused"); continue; }
+      req.log.info({ channel }, "meta_message_queued");
       d.debounce.push(`${channel}:${customerId}`, text, async messages => {
         if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
         const reply = await d.openclaw.reply(channel, customerId, messages);
         await d.instagram.send(channel, customerId, reply);
+        logger.info({ channel }, "meta_reply_sent");
       });
     }
     res.sendStatus(200);
