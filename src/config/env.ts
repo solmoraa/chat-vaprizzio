@@ -21,6 +21,7 @@ const schema = z.object({
   META_ACCESS_TOKEN: z.string().default(""),
   META_INSTAGRAM_ACCESS_TOKEN: z.string().default(""),
   META_APP_SECRET: z.string().default(""),
+  META_INSTAGRAM_APP_SECRET: z.string().default(""),
   META_VERIFY_TOKEN: z.string().default(""),
   META_GRAPH_VERSION: z.string().default("v23.0"),
   HUMAN_NOTIFICATION_CHANNEL: z.string().default("telegram"),

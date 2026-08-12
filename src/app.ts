@@ -45,8 +45,11 @@ export function createApp(d: AppDependencies) {
 
   const receiveMetaWebhook: express.RequestHandler = (req, res) => {
     const raw = req.body as Buffer;
-    if (!verifyMetaSignature(raw, req.header("x-hub-signature-256"), d.config.META_APP_SECRET)) return res.sendStatus(401);
     const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: Array<{ sender?: { id?: string }; recipient?: { id?: string }; message?: { text?: string; is_echo?: boolean; app_id?: string | number; attachments?: Array<{ type?: string; payload?: { url?: string } }> } }> }> };
+    const signatureSecret = body.object === "page"
+      ? d.config.META_APP_SECRET
+      : d.config.META_INSTAGRAM_APP_SECRET || d.config.META_APP_SECRET;
+    if (!verifyMetaSignature(raw, req.header("x-hub-signature-256"), signatureSecret)) return res.sendStatus(401);
     const channel: Channel = body.object === "page" ? "messenger" : "instagram";
     for (const event of body.entry?.flatMap(x => x.messaging ?? []) ?? []) {
       if (event.message?.is_echo) {
