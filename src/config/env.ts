@@ -19,6 +19,7 @@ const schema = z.object({
   WHATSAPP_TEST_ALLOW_FROM: z.string().default(""),
   INSTAGRAM_ACCOUNT_ID: z.string().default(""),
   META_ACCESS_TOKEN: z.string().default(""),
+  META_INSTAGRAM_ACCESS_TOKEN: z.string().default(""),
   META_APP_SECRET: z.string().default(""),
   META_VERIFY_TOKEN: z.string().default(""),
   META_GRAPH_VERSION: z.string().default("v23.0"),

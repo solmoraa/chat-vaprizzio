@@ -1,14 +1,26 @@
 export class InstagramClient {
   private readonly profiles = new Map<string, { value:string; expiresAt:number }>();
-  constructor(private readonly accessToken: string, private readonly graphVersion: string) {}
+  constructor(
+    private readonly pageAccessToken: string,
+    private readonly graphVersion: string,
+    private readonly instagramAccessToken = ""
+  ) {}
+  private credentials(channel: string) {
+    if (channel === "instagram" && this.instagramAccessToken) {
+      return { token:this.instagramAccessToken, origin:"https://graph.instagram.com" };
+    }
+    return { token:this.pageAccessToken, origin:"https://graph.facebook.com" };
+  }
   async customerName(channel: string, customerId: string) {
-    if (!this.accessToken || !["instagram", "messenger"].includes(channel)) return null;
+    if (!["instagram", "messenger"].includes(channel)) return null;
+    const { token, origin } = this.credentials(channel);
+    if (!token) return null;
     const cacheKey = `${channel}:${customerId}`;
     const cached = this.profiles.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) return cached.value;
     try {
       const fields = channel === "instagram" ? "username,name" : "name,first_name,last_name";
-      const res = await fetch(`https://graph.facebook.com/${this.graphVersion}/${encodeURIComponent(customerId)}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(this.accessToken)}`);
+      const res = await fetch(`${origin}/${this.graphVersion}/${encodeURIComponent(customerId)}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`);
       if (!res.ok) return null;
       const profile = await res.json() as { username?:string; name?:string; first_name?:string; last_name?:string };
       const username = profile.username?.trim();
@@ -21,12 +33,13 @@ export class InstagramClient {
       return null;
     }
   }
-  async send(recipientId: string, text: string) {
-    if (!this.accessToken) throw new Error("INSTAGRAM_NOT_CONFIGURED");
+  async send(channel: "instagram" | "messenger", recipientId: string, text: string) {
+    const { token, origin } = this.credentials(channel);
+    if (!token) throw new Error(`${channel.toUpperCase()}_NOT_CONFIGURED`);
     const blocks = text.split(/\n\s*\n+/).map(block => block.trim()).filter(Boolean);
     for (const block of blocks.length ? blocks : [text]) {
-      const res = await fetch(`https://graph.facebook.com/${this.graphVersion}/me/messages?access_token=${encodeURIComponent(this.accessToken)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipient: { id: recipientId }, message: { text:block } }) });
-      if (!res.ok) throw new Error(`INSTAGRAM_SEND_ERROR:${res.status}`);
+      const res = await fetch(`${origin}/${this.graphVersion}/me/messages?access_token=${encodeURIComponent(token)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipient: { id: recipientId }, message: { text:block } }) });
+      if (!res.ok) throw new Error(`${channel.toUpperCase()}_SEND_ERROR:${res.status}`);
     }
   }
 }

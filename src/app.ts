@@ -69,7 +69,7 @@ export function createApp(d: AppDependencies) {
       d.debounce.push(`${channel}:${customerId}`, text, async messages => {
         if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
         const reply = await d.openclaw.reply(channel, customerId, messages);
-        await d.instagram.send(customerId, reply);
+        await d.instagram.send(channel, customerId, reply);
       });
     }
     res.sendStatus(200);

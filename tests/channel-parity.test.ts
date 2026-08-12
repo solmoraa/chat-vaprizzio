@@ -39,9 +39,20 @@ describe("formato de respuestas Meta", () => {
     vi.stubGlobal("fetch", fetchMock);
     const client = new InstagramClient("token", "v26.0");
 
-    await client.send("cliente", "Primer mensaje\n\nSegundo mensaje\n\nTercer mensaje");
+    await client.send("messenger", "cliente", "Primer mensaje\n\nSegundo mensaje\n\nTercer mensaje");
 
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(fetchMock.mock.calls.map(call => JSON.parse(String(call[1]?.body)).message.text)).toEqual(["Primer mensaje", "Segundo mensaje", "Tercer mensaje"]);
+  });
+
+  it("usa credenciales y dominio separados para Instagram", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok:true, status:200 });
+    vi.stubGlobal("fetch", fetchMock);
+    const client = new InstagramClient("page-token", "v26.0", "instagram-token");
+
+    await client.send("instagram", "cliente", "Hola");
+
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("graph.instagram.com/v26.0/me/messages");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("instagram-token");
   });
 });
