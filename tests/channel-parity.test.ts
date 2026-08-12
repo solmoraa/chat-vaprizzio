@@ -48,11 +48,11 @@ describe("formato de respuestas Meta", () => {
   it("usa credenciales y dominio separados para Instagram", async () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok:true, status:200 });
     vi.stubGlobal("fetch", fetchMock);
-    const client = new InstagramClient("page-token", "v26.0", "instagram-token");
+    const client = new InstagramClient("page-token", "v26.0", "instagram-token", "ig-account");
 
     await client.send("instagram", "cliente", "Hola");
 
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("graph.instagram.com/v26.0/me/messages");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("graph.instagram.com/v26.0/ig-account/messages");
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("instagram-token");
   });
 });

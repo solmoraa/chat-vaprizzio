@@ -3,7 +3,8 @@ export class InstagramClient {
   constructor(
     private readonly pageAccessToken: string,
     private readonly graphVersion: string,
-    private readonly instagramAccessToken = ""
+    private readonly instagramAccessToken = "",
+    private readonly instagramAccountId = ""
   ) {}
   private credentials(channel: string) {
     if (channel === "instagram" && this.instagramAccessToken) {
@@ -36,10 +37,15 @@ export class InstagramClient {
   async send(channel: "instagram" | "messenger", recipientId: string, text: string) {
     const { token, origin } = this.credentials(channel);
     if (!token) throw new Error(`${channel.toUpperCase()}_NOT_CONFIGURED`);
+    if (channel === "instagram" && !this.instagramAccountId) throw new Error("INSTAGRAM_ACCOUNT_ID_NOT_CONFIGURED");
+    const senderId = channel === "instagram" ? encodeURIComponent(this.instagramAccountId) : "me";
     const blocks = text.split(/\n\s*\n+/).map(block => block.trim()).filter(Boolean);
     for (const block of blocks.length ? blocks : [text]) {
-      const res = await fetch(`${origin}/${this.graphVersion}/me/messages?access_token=${encodeURIComponent(token)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipient: { id: recipientId }, message: { text:block } }) });
-      if (!res.ok) throw new Error(`${channel.toUpperCase()}_SEND_ERROR:${res.status}`);
+      const res = await fetch(`${origin}/${this.graphVersion}/${senderId}/messages?access_token=${encodeURIComponent(token)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipient: { id: recipientId }, message: { text:block } }) });
+      if (!res.ok) {
+        const detail = (await res.text()).replace(/\s+/g, " ").slice(0, 500);
+        throw new Error(`${channel.toUpperCase()}_SEND_ERROR:${res.status}:${detail}`);
+      }
     }
   }
 }
