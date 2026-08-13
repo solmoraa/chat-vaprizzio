@@ -27,6 +27,7 @@ describe("respuesta de OpenClaw para Instagram", () => {
     expect(runner).toHaveBeenCalledWith("openclaw", expect.arrayContaining([
       "--agent", "vaprizzio-sales-test",
       "--session-key", "instagram:ig-123",
+      "--timeout", "60",
       "--json"
     ]));
     const args = runner.mock.calls[0]![1];

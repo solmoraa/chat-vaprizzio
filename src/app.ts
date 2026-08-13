@@ -18,7 +18,14 @@ export function createApp(d: AppDependencies) {
   const app = express();
   const logger = pino({ level: d.config.LOG_LEVEL, redact: { paths: ["req.headers.authorization", "req.headers.x-internal-secret", "*.token", "*.accessToken"], censor: "[REDACTED]" } });
   app.use(pinoHttp({ logger }));
-  app.get("/health", (_req, res) => res.json({ ok: true, env: d.config.APP_ENV, productionAllowed: d.config.ALLOW_PRODUCTION, catalog: d.config.CATALOG_PROVIDER }));
+  app.get("/health", (_req, res) => res.json({
+    ok: true,
+    env: d.config.APP_ENV,
+    productionAllowed: d.config.ALLOW_PRODUCTION,
+    catalog: d.config.CATALOG_PROVIDER,
+    responseDelayMs: d.config.DEBOUNCE_MS,
+    catalogCacheMs: d.config.CATALOG_CACHE_MS,
+  }));
   app.get("/ready", async (_req, res) => { try { await d.tools.catalog.priceList(); res.json({ ok:true, catalog:true }); } catch { res.status(503).json({ ok:false, catalog:false }); } });
   app.get("/diagnostics/meta", async (req, res) => {
     if (!d.config.TOOL_API_TOKEN) return res.status(503).json({ ok:false, error:"DIAGNOSTICS_TOKEN_NOT_CONFIGURED" });
@@ -141,9 +148,11 @@ export function createApp(d: AppDependencies) {
       req.log.info({ channel }, "meta_message_queued");
       d.debounce.push(`${channel}:${customerId}`, text, async messages => {
         if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
+        const startedAt = Date.now();
         const reply = await d.openclaw.reply(channel, customerId, messages);
+        const agentMs = Date.now() - startedAt;
         await d.instagram.send(channel, customerId, reply);
-        logger.info({ channel }, "meta_reply_sent");
+        logger.info({ channel, customerId, messageCount:messages.length, configuredDelayMs:d.config.DEBOUNCE_MS, agentMs, deliveryMs:Date.now() - startedAt - agentMs, processingMs:Date.now() - startedAt }, "meta_reply_sent");
       });
     }
     res.sendStatus(200);
@@ -164,7 +173,11 @@ export function createApp(d: AppDependencies) {
     }
     if (opensFreshTopic(message)) d.takeover.resume(channel, customerId);
     const accept = d.takeover.canAiReply(channel, customerId);
-    if (accept) d.debounce.push(`${channel}:${customerId}`, message, messages => d.openclaw.dispatch(channel, customerId, messages));
+    if (accept) d.debounce.push(`${channel}:${customerId}`, message, async messages => {
+      const startedAt = Date.now();
+      await d.openclaw.dispatch(channel, customerId, messages);
+      logger.info({ channel, customerId, messageCount:messages.length, configuredDelayMs:d.config.DEBOUNCE_MS, dispatchMs:Date.now() - startedAt }, "whatsapp_dispatch_accepted");
+    });
     res.json({ accept, queued: accept, state: accept ? "AI_ACTIVE" : c.state });
   });
 

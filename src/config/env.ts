@@ -31,6 +31,9 @@ const schema = z.object({
   TOOL_API_TOKEN: z.string().default(""),
   TOOL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
   DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(6000),
+  CATALOG_CACHE_MS: z.coerce.number().int().nonnegative().default(5000),
+  EXTERNAL_REQUEST_TIMEOUT_MS: z.coerce.number().int().positive().default(10000),
+  OPENCLAW_AGENT_TIMEOUT_SECONDS: z.coerce.number().int().positive().default(60),
   CONVERSATION_IDLE_MINUTES: z.coerce.number().int().positive().default(720),
   CONVERSATION_RETENTION_DAYS: z.coerce.number().int().positive().default(30),
   SALE_CONFIRMATION_MODE: z.enum(["disabled", "explicit_internal_command"]).default("disabled")

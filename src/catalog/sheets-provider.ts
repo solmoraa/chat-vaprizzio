@@ -41,7 +41,8 @@ export const parseProductRows = (rows: unknown[][], urlColumn = -1): Product[] =
 
 export class GoogleSheetsCatalogProvider implements CatalogProvider {
   private sheets?: sheets_v4.Sheets;
-  constructor(private readonly sheetId: string, private readonly credentialsFile: string) {
+  private readonly cache = new Map<string, { expiresAt:number; value?:unknown; pending?:Promise<unknown> }>();
+  constructor(private readonly sheetId: string, private readonly credentialsFile: string, private readonly cacheMs = 5000, private readonly requestTimeoutMs = 10000) {
     if (!sheetId || !credentialsFile) throw new Error("Google Sheets requiere GOOGLE_SHEET_ID y GOOGLE_SERVICE_ACCOUNT_FILE");
   }
   private async client() {
@@ -52,8 +53,32 @@ export class GoogleSheetsCatalogProvider implements CatalogProvider {
     return this.sheets;
   }
   private async rows(range: string): Promise<unknown[][]> {
-    const res = await (await this.client()).spreadsheets.values.get({ spreadsheetId: this.sheetId, range });
+    return this.cached(`rows:${range}`, () => this.rowsFresh(range));
+  }
+  private async rowsFresh(range:string):Promise<unknown[][]> {
+    const res = await (await this.client()).spreadsheets.values.get(
+      { spreadsheetId: this.sheetId, range },
+      { signal:AbortSignal.timeout(this.requestTimeoutMs) }
+    );
     return res.data.values ?? [];
+  }
+  private async cached<T>(key:string, load:()=>Promise<T>):Promise<T> {
+    if (this.cacheMs === 0) return load();
+    const current = this.cache.get(key);
+    if (current?.value !== undefined && current.expiresAt > Date.now()) return current.value as T;
+    if (current?.pending) return current.pending as Promise<T>;
+    const pending = load().then(value => {
+      this.cache.set(key, { value, expiresAt:Date.now() + this.cacheMs });
+      return value;
+    }).catch(error => {
+      this.cache.delete(key);
+      throw error;
+    });
+    this.cache.set(key, { expiresAt:0, pending });
+    return pending;
+  }
+  private invalidate(...ranges:string[]) {
+    for (const range of ranges) this.cache.delete(`rows:${range}`);
   }
   async products(): Promise<Product[]> {
     const [headers = [], ...rows] = await this.rows("Productos!A:S");
@@ -88,10 +113,12 @@ export class GoogleSheetsCatalogProvider implements CatalogProvider {
     return row ? String(row[1] ?? "") : null;
   }
   async registerSale(sale: Sale) {
-    await (await this.client()).spreadsheets.values.append({ spreadsheetId: this.sheetId, range: "VENTAS!A:I", valueInputOption: "USER_ENTERED", requestBody: { values: [[sale.date, sale.id, sale.customerId, sale.channel, JSON.stringify(sale.lines), sale.total, sale.lines.map(x => x.priceType).join(","), sale.negotiatedPrice ?? "", "CONFIRMADA"]] } });
+    await (await this.client()).spreadsheets.values.append({ spreadsheetId: this.sheetId, range: "VENTAS!A:I", valueInputOption: "USER_ENTERED", requestBody: { values: [[sale.date, sale.id, sale.customerId, sale.channel, JSON.stringify(sale.lines), sale.total, sale.lines.map(x => x.priceType).join(","), sale.negotiatedPrice ?? "", "CONFIRMADA"]] } }, { signal:AbortSignal.timeout(this.requestTimeoutMs) });
   }
   async decrementStock(lines: Array<{ sku: string; quantity: number }>) {
-    const values = await this.rows("Productos!A:K");
+    // La lectura de confirmacion nunca usa cache: stock y escrituras mantienen
+    // la misma seguridad que antes de optimizar las consultas comerciales.
+    const values = await this.rowsFresh("Productos!A:K");
     const updates = lines.map(line => {
       const index = values.findIndex((row, i) => i > 0 && parseProductRows([row])[0]?.sku === line.sku);
       if (index < 1) throw new Error(`SKU_NOT_FOUND:${line.sku}`);
@@ -99,6 +126,7 @@ export class GoogleSheetsCatalogProvider implements CatalogProvider {
       if (stock < line.quantity) throw new Error(`INSUFFICIENT_STOCK:${line.sku}`);
       return { range: `Productos!C${index + 1}`, values: [[stock - line.quantity]] };
     });
-    await (await this.client()).spreadsheets.values.batchUpdate({ spreadsheetId: this.sheetId, requestBody: { valueInputOption: "RAW", data: updates } });
+    await (await this.client()).spreadsheets.values.batchUpdate({ spreadsheetId: this.sheetId, requestBody: { valueInputOption: "RAW", data: updates } }, { signal:AbortSignal.timeout(this.requestTimeoutMs) });
+    this.invalidate("Productos!A:S", "Productos!A:K");
   }
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GoogleSheetsCatalogProvider, parseProductRows, sheetNumber } from "../src/catalog/sheets-provider.js";
 
 describe("lector de la hoja Productos", () => {
@@ -27,5 +27,21 @@ describe("lector de la hoja Productos", () => {
     const provider = new GoogleSheetsCatalogProvider("sheet", "credentials");
     (provider as unknown as { rows:(range:string)=>Promise<unknown[][]> }).rows = async () => [["Valor USDT"], ["$1.275,50"]];
     await expect(provider.wholesaleExchangeRate()).resolves.toBe(1275.5);
+  });
+
+  it("reutiliza y agrupa lecturas identicas para no frenar una respuesta", async () => {
+    const get = vi.fn().mockResolvedValue({ data:{ values:[
+      ["Marca", "Sabor", "Stock", "Costo", "Precio venta"],
+      ["Elfbar Ice King 40k", "Miami Mint", 7, 0, 25000],
+    ] } });
+    const provider = new GoogleSheetsCatalogProvider("sheet", "credentials", 5000);
+    (provider as unknown as { sheets:unknown }).sheets = { spreadsheets:{ values:{ get } } };
+
+    const [first, second] = await Promise.all([provider.products(), provider.products()]);
+    const third = await provider.products();
+
+    expect(first).toEqual(second);
+    expect(third[0]?.flavor).toBe("Miami Mint");
+    expect(get).toHaveBeenCalledTimes(1);
   });
 });

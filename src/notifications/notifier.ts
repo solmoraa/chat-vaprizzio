@@ -5,7 +5,7 @@ export class ConsoleNotifier implements HumanNotifier { async notify(value: Huma
 export class TelegramNotifier implements HumanNotifier {
   private readonly chatIds: string[];
 
-  constructor(private readonly token: string, chatIds: string | string[], private readonly resolveCustomerName?: CustomerNameResolver) {
+  constructor(private readonly token: string, chatIds: string | string[], private readonly resolveCustomerName?: CustomerNameResolver, private readonly requestTimeoutMs = 10000) {
     this.chatIds = (Array.isArray(chatIds) ? chatIds : chatIds.split(","))
       .map((chatId) => chatId.trim())
       .filter(Boolean);
@@ -15,7 +15,7 @@ export class TelegramNotifier implements HumanNotifier {
     let lastError: Error | undefined;
     for (let attempt = 1; attempt <= 3; attempt += 1) {
       try {
-        const res = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text }) });
+        const res = await fetch(`https://api.telegram.org/bot${this.token}/sendMessage`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ chat_id: chatId, text }), signal:AbortSignal.timeout(this.requestTimeoutMs) });
         if (res.ok) return;
         lastError = new Error(`TELEGRAM_ERROR:${res.status}:chat=${chatId}:attempt=${attempt}`);
       } catch (error) {

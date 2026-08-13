@@ -5,7 +5,8 @@ export class InstagramClient {
     private readonly pageAccessToken: string,
     private readonly graphVersion: string,
     private readonly instagramAccessToken = "",
-    private readonly instagramAccountId = ""
+    private readonly instagramAccountId = "",
+    private readonly requestTimeoutMs = 10000
   ) {}
   private credentials(channel: string) {
     if (channel === "instagram" && this.instagramAccessToken) {
@@ -31,7 +32,7 @@ export class InstagramClient {
     if (cached && cached.expiresAt > Date.now()) return cached.value;
     try {
       const fields = channel === "instagram" ? "username,name" : "name,first_name,last_name";
-      const res = await fetch(`${origin}/${this.graphVersion}/${encodeURIComponent(customerId)}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`);
+      const res = await fetch(`${origin}/${this.graphVersion}/${encodeURIComponent(customerId)}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(token)}`, { signal:AbortSignal.timeout(this.requestTimeoutMs) });
       if (!res.ok) return null;
       const profile = await res.json() as { username?:string; name?:string; first_name?:string; last_name?:string };
       const username = profile.username?.trim();
@@ -59,7 +60,7 @@ export class InstagramClient {
     };
     if (!this.instagramAccessToken) return result;
     const request = async (path:string) => {
-      const response = await fetch(`https://graph.instagram.com/${this.graphVersion}/${path}${path.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(this.instagramAccessToken)}`);
+      const response = await fetch(`https://graph.instagram.com/${this.graphVersion}/${path}${path.includes("?") ? "&" : "?"}access_token=${encodeURIComponent(this.instagramAccessToken)}`, { signal:AbortSignal.timeout(this.requestTimeoutMs) });
       const text = await response.text();
       let payload: Record<string, unknown> = {};
       try { payload = JSON.parse(text) as Record<string, unknown>; } catch { /* respuesta no JSON */ }
@@ -107,7 +108,7 @@ export class InstagramClient {
       : "me";
     const blocks = text.split(/\n\s*\n+/).map(block => block.trim()).filter(Boolean);
     for (const block of blocks.length ? blocks : [text]) {
-      const res = await fetch(`${origin}/${this.graphVersion}/${senderId}/messages?access_token=${encodeURIComponent(token)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipient: { id: recipientId }, message: { text:block } }) });
+      const res = await fetch(`${origin}/${this.graphVersion}/${senderId}/messages?access_token=${encodeURIComponent(token)}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ recipient: { id: recipientId }, message: { text:block } }), signal:AbortSignal.timeout(this.requestTimeoutMs) });
       if (!res.ok) {
         const detail = (await res.text()).replace(/\s+/g, " ").slice(0, 500);
         throw new Error(`${channel.toUpperCase()}_SEND_ERROR:${res.status}:${detail}`);

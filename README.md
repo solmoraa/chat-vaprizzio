@@ -198,9 +198,25 @@ npm ci
 npm run verify
 npm run build
 sed -i 's/^DEBOUNCE_MS=.*/DEBOUNCE_MS=6000/' .env
+grep -q '^CATALOG_CACHE_MS=' .env || printf 'CATALOG_CACHE_MS=5000\n' >> .env
+grep -q '^EXTERNAL_REQUEST_TIMEOUT_MS=' .env || printf 'EXTERNAL_REQUEST_TIMEOUT_MS=10000\n' >> .env
+grep -q '^OPENCLAW_AGENT_TIMEOUT_SECONDS=' .env || printf 'OPENCLAW_AGENT_TIMEOUT_SECONDS=60\n' >> .env
 npm run sync:openclaw
 systemctl --user restart chat-vaprizzio-test.service
+bash deploy/tune-openclaw-latency.sh
+sudo systemctl restart openclaw-gateway.service
 ```
+
+La afinaciÃ³n separa las sesiones directas por cuenta, canal y cliente para que una
+conversaciÃ³n lenta no bloquee a las demÃ¡s, conserva el reinicio por 12 horas,
+reduce la espera interna de la cola de Telegram y mantiene la vista parcial de
+la respuesta. No cambia los agentes, conocimientos, herramientas ni reglas de
+atenciÃ³n existentes.
+
+`GET /health` informa `responseDelayMs` y `catalogCacheMs`. En los logs,
+`meta_reply_sent` separa `agentMs` y `deliveryMs`, mientras que
+`whatsapp_dispatch_accepted` informa `dispatchMs`; esto permite localizar una
+demora futura sin modificar el contenido de las respuestas.
 
 El gateway de OpenClaw es compartido por Telegram y los canales comerciales. En este servidor la unidad real es la unidad de sistema; debe estar habilitada al iniciar el VPS y reiniciarse sola si se corta. La unidad de usuario duplicada debe quedar deshabilitada para evitar dos gateways compitiendo:
 

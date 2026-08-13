@@ -4,16 +4,25 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const WHATSAPP_PARITY_CONTEXT = "[Política de canal: aplicá exactamente los mismos conocimientos, respuestas, tono, herramientas, validaciones, pausas humanas, alertas y reglas comerciales vigentes de WhatsApp. El canal solo cambia el transporte.]";
 type AgentRunner = (file: string, args: string[]) => Promise<{ stdout: string }>;
-const defaultRunner: AgentRunner = async (file, args) => {
-  const result = await execFileAsync(file, args, { timeout:120_000, maxBuffer:2_000_000 });
-  return { stdout:String(result.stdout) };
-};
-
 export class OpenClawClient {
-  constructor(private readonly baseUrl: string, private readonly token: string, private readonly agentId: string, private readonly cliPath = "openclaw", private readonly runner: AgentRunner = defaultRunner) {}
+  private readonly runner: AgentRunner;
+  constructor(
+    private readonly baseUrl: string,
+    private readonly token: string,
+    private readonly agentId: string,
+    private readonly cliPath = "openclaw",
+    runner?: AgentRunner,
+    private readonly requestTimeoutMs = 10000,
+    private readonly agentTimeoutSeconds = 60
+  ) {
+    this.runner = runner ?? (async (file, args) => {
+      const result = await execFileAsync(file, args, { timeout:(this.agentTimeoutSeconds + 5) * 1000, maxBuffer:2_000_000 });
+      return { stdout:String(result.stdout) };
+    });
+  }
   async dispatch(channel: string, customerId: string, messages: string[]) {
     if (!this.token) throw new Error("OPENCLAW_NOT_CONFIGURED");
-    const res = await fetch(`${this.baseUrl}/hooks/agent`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${this.token}` }, body: JSON.stringify({ agentId: this.agentId, sessionKey: `${channel}:${customerId}`, message: messages.join("\n"), deliver: true }) });
+    const res = await fetch(`${this.baseUrl}/hooks/agent`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${this.token}` }, body: JSON.stringify({ agentId: this.agentId, sessionKey: `${channel}:${customerId}`, message: messages.join("\n"), deliver: true }), signal:AbortSignal.timeout(this.requestTimeoutMs) });
     if (!res.ok) throw new Error(`OPENCLAW_ERROR:${res.status}`);
   }
 
@@ -34,7 +43,7 @@ export class OpenClawClient {
       "agent", "--agent", this.agentId,
       "--session-key", `${channel}:${customerId}`,
       "--message", prompt,
-      "--timeout", "120",
+      "--timeout", String(this.agentTimeoutSeconds),
       "--json"
     ]);
     const start = stdout.indexOf("{");
