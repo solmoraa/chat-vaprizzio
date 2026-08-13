@@ -5,20 +5,14 @@ import type { HumanNotifier } from "../notifications/notifier.js";
 export class TakeoverService {
   private readonly recentAlerts = new Map<string, number>();
   constructor(private readonly repo: ConversationRepository, private readonly notifier: HumanNotifier) {}
-  canAiReply(channel: Channel, customerId: string, now = new Date()) {
+  canAiReply(channel: Channel, customerId: string, _now = new Date()) {
     const conversation = this.repo.getOrCreate(channel, customerId);
-    if (conversation.state === "AI_ACTIVE") return true;
-    if (conversation.pausedUntil && now.getTime() >= new Date(conversation.pausedUntil).getTime()) {
-      this.repo.setState(channel, customerId, "AI_ACTIVE", null);
-      return true;
-    }
-    return false;
+    return conversation.state === "AI_ACTIVE";
   }
   async request(channel: Channel, customerId: string, reason: string, quantity?: number, products?: string[], forceNotification = false) {
     const current = this.repo.getOrCreate(channel, customerId);
-    const existingPauseIsActive = current.state !== "AI_ACTIVE" && !!current.pausedUntil && Date.now() < new Date(current.pausedUntil).getTime();
-    const pausedUntil = existingPauseIsActive ? current.pausedUntil : new Date(Date.now() + 60 * 60 * 1000).toISOString();
-    const c = this.repo.setState(channel, customerId, "WAITING_HUMAN", pausedUntil);
+    if (current.state !== "AI_ACTIVE" && !forceNotification) return current;
+    const c = this.repo.setState(channel, customerId, "WAITING_HUMAN", null);
     const latest = c.lastMessages.at(-1) ?? ""; const alertKey = `${channel}|${customerId}|${reason}|${latest}`; const lastSent = this.recentAlerts.get(alertKey) ?? 0;
     if (forceNotification || Date.now() - lastSent >= 60_000) { await this.notifier.notify({ channel, customerId, messages: c.lastMessages.slice(-5), reason, ...(quantity == null ? {} : { quantity }), ...(products ? { products } : {}) }); this.recentAlerts.set(alertKey, Date.now()); }
     return c;

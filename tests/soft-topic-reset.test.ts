@@ -46,7 +46,7 @@ describe("reinicio suave de tema", () => {
     const tools = new AgentToolService(catalog as never, {} as never, takeover, {} as never, undefined, repo);
     repo.setState("whatsapp", "nuevo-stock", "WAITING_HUMAN", new Date(Date.now() + 3_600_000).toISOString());
 
-    await tools.execute("buscar_sabor", { channel:"whatsapp", customerId:"nuevo-stock", query:"Watermelon" });
+    await tools.execute("buscar_sabor", { channel:"whatsapp", customerId:"nuevo-stock", query:"Watermelon", triggerMessage:"hola, tenés Watermelon?" });
 
     expect(catalog.byFlavor).toHaveBeenCalledWith("Watermelon");
     expect(takeover.canAiReply("whatsapp", "nuevo-stock")).toBe(true);

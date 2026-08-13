@@ -14,13 +14,18 @@ export class AgentToolService {
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
     if (channel && customerId && triggerMessage && opensFreshTopic(triggerMessage)) this.takeover.resume(channel, customerId);
-    const alertTools = new Set(["consultar_mayorista", "preparar_venta_mayorista", "reportar_comprobante_mayorista", "solicitar_envio_app", "reportar_consulta_fuera_horario", "reportar_consulta_post_comprobante", "reportar_condicion_pago", "reportar_demora_envio", "reportar_cambio_envio", "evaluar_producto_fallado", "reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "coordinar_visita_local", "reportar_comprobante_web", "reportar_solicitud_media", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario", "solicitar_intervencion_humana"]);
     const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "consultar_ficha_producto", "comparar_modelos", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_negocio"]);
-    const silentWhileHumanCoordinates = new Set(["consultar_entrega", "solicitar_envio_app", "reportar_consulta_post_comprobante", "evaluar_producto_fallado", "reportar_cambio_envio"]);
+    const arrivalTools = new Set(["reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
-      if (silentWhileHumanCoordinates.has(name)) return { blocked:true, reason:"HUMAN_COORDINATION_ACTIVE", customerMessage:"NO_REPLY", notificationSent:false, instruction:"Una persona ya está atendiendo esta operación. No respondas ni envíes otra alerta." };
-      if (newTopicReadTools.has(name)) this.takeover.resume(channel, customerId);
-      else if (name !== "get_conversation_state" && name !== "iniciar_nuevo_tema" && !alertTools.has(name)) return { blocked:true, reason:"AI_NOT_ACTIVE", customerMessage:"NO_REPLY", instruction:"No expliques la pausa ni prometas intervención. No envíes ningún mensaje al cliente." };
+      const latestMessage = triggerMessage || this.conversations?.getOrCreate(channel, customerId).lastMessages.at(-1) || "";
+      if (newTopicReadTools.has(name) && opensFreshTopic(latestMessage)) this.takeover.resume(channel, customerId);
+      else if (name !== "get_conversation_state" && name !== "iniciar_nuevo_tema" && !arrivalTools.has(name)) return {
+        blocked:true,
+        reason:"HUMAN_COORDINATION_ACTIVE",
+        customerMessage:"NO_REPLY",
+        notificationSent:false,
+        instruction:"Una persona ya está atendiendo esta conversación. No respondas y no envíes otra alerta. Solo un saludo o tema nuevo reactiva el bot; las llegadas al local usan sus herramientas específicas."
+      };
     }
     switch (name) {
       case "buscar_sabor": return this.catalog.byFlavor(String(args.query));
@@ -88,7 +93,7 @@ export class AgentToolService {
         const reason = isOutside
           ? `🚨🚨 CLIENTE AFUERA DEL LOCAL PARA REALIZAR UN CAMBIO 🚨🚨 Estado: ${status}`
           : `Cliente por llegar para realizar un cambio: ${status}`;
-        const result = await this.takeover.request(channel, customerId, reason, undefined, product ? [product] : undefined);
+        const result = await this.takeover.request(channel, customerId, reason, undefined, product ? [product] : undefined, true);
         const customerMessage = isOutside ? "Ya salgo!" : "Dale, te esperamos";
         return { action: "AVISADO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
       }
@@ -96,7 +101,7 @@ export class AgentToolService {
         const status = String(args.status ?? "está afuera");
         const product = String(args.product ?? "");
         const isOutside = /afuera|en la puerta|llegu[eé]|ya estoy/i.test(status);
-        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "LLEGANDO"} PARA RETIRAR UNA COMPRA 🚨 Estado: ${status}`, undefined, product ? [product] : undefined);
+        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "LLEGANDO"} PARA RETIRAR UNA COMPRA 🚨 Estado: ${status}`, undefined, product ? [product] : undefined, true);
         return { action:"AVISADO_RETIRO", customerMessage:isOutside ? "Ya salgo!" : "Dale, te esperamos", state:result.state, pausedUntil:result.pausedUntil };
       }
       case "reportar_recordatorio_afuera": {
@@ -157,15 +162,17 @@ export class AgentToolService {
       }
       case "reportar_llegada_sin_producto": {
         const arrivalStatus = String(args.arrivalStatus ?? "ya está viniendo");
-        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE VINIENDO AL LOCAL SIN VAPE DECIDIDO 🚨 Estado: ${arrivalStatus}`);
-        return { action: "ATENCION_HUMANA", customerMessage: "Dale, ya te atiendo!", state: result.state, pausedUntil: result.pausedUntil };
+        const isOutside = /afuera|en la puerta|llegu[eé]|ya estoy/i.test(arrivalStatus);
+        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "VINIENDO"} AL LOCAL SIN VAPE DECIDIDO 🚨 Estado: ${arrivalStatus}`, undefined, undefined, true);
+        return { action: "ATENCION_HUMANA", customerMessage: isOutside ? "Ya salgo!" : "Dale, ya te atiendo!", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_llegada_sin_horario": {
         if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const arrivalStatus = String(args.arrivalStatus ?? "ya está viniendo");
         const product = String(args.product ?? "");
-        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE VINIENDO AL LOCAL SIN HORARIO ACORDADO 🚨 Estado: ${arrivalStatus}`, undefined, product ? [product] : undefined);
-        return { action: "ATENCION_HUMANA", customerMessage: "Dale, dame un segundo que verifico que haya alguien para recibirte", state: result.state, pausedUntil: result.pausedUntil };
+        const isOutside = /afuera|en la puerta|llegu[eé]|ya estoy/i.test(arrivalStatus);
+        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "VINIENDO"} AL LOCAL SIN HORARIO ACORDADO 🚨 Estado: ${arrivalStatus}`, undefined, product ? [product] : undefined, true);
+        return { action: "ATENCION_HUMANA", customerMessage: isOutside ? "Ya salgo!" : "Dale, dame un segundo que verifico que haya alguien para recibirte", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_pedido_inmediato_app": {
         if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo desde la web y mañana lo despachamos:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
