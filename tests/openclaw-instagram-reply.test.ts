@@ -16,7 +16,11 @@ describe("respuesta de OpenClaw para Instagram", () => {
       "--session-key", "instagram:ig-123",
       "--json"
     ]));
-    expect(runner.mock.calls[0]![1]).toContain("[Canal: instagram]\n[CustomerId: ig-123]\nhola\ntenés Miami Mint?");
+    const args = runner.mock.calls[0]![1];
+    const prompt = args[args.indexOf("--message") + 1];
+    expect(prompt).toContain("[Canal: instagram]\n[CustomerId: ig-123]");
+    expect(prompt).toContain("mismos conocimientos, respuestas, tono, herramientas");
+    expect(prompt).toContain("hola\ntenés Miami Mint?");
   });
   it("lee el texto desde result.payloads en versiones nuevas de OpenClaw", async () => {
     const runner = vi.fn().mockResolvedValue({
@@ -25,5 +29,8 @@ describe("respuesta de OpenClaw para Instagram", () => {
     const client = new OpenClawClient("http://127.0.0.1:18789", "token", "vaprizzio-sales-test", "openclaw", runner);
 
     await expect(client.reply("messenger", "fb-123", ["hola"])).resolves.toBe("Hola! Buscabas algun vape?");
+    const args = runner.mock.calls[0]![1];
+    const prompt = args[args.indexOf("--message") + 1];
+    expect(prompt).toContain("reglas comerciales vigentes de WhatsApp");
   });
 });

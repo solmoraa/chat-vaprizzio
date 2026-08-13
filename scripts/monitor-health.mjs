@@ -3,6 +3,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 
 const baseUrl = `http://${process.env.HOST || "127.0.0.1"}:${process.env.PORT || "3000"}`;
+const openClawBaseUrl = process.env.OPENCLAW_BASE_URL || "http://127.0.0.1:18789";
 const stateFile = resolve(process.env.HEALTH_MONITOR_STATE_FILE || "./data/health-monitor-state.json");
 const threshold = Math.max(2, Number(process.env.HEALTH_FAILURE_THRESHOLD || 3));
 const cooldownMs = Math.max(5, Number(process.env.HEALTH_ALERT_COOLDOWN_MINUTES || 30)) * 60_000;
@@ -12,6 +13,12 @@ let failure = "";
 for (const path of ["/health", "/ready"]) {
   try { const response = await fetch(`${baseUrl}${path}`, { signal:AbortSignal.timeout(8000) }); if (!response.ok) failure += `${path}: HTTP ${response.status}; `; }
   catch (error) { failure += `${path}: ${error instanceof Error ? error.message : "sin respuesta"}; `; }
+}
+try {
+  const response = await fetch(openClawBaseUrl, { signal:AbortSignal.timeout(8000) });
+  if (response.status >= 500) failure += `OpenClaw gateway: HTTP ${response.status}; `;
+} catch (error) {
+  failure += `OpenClaw gateway: ${error instanceof Error ? error.message : "sin respuesta"}; `;
 }
 if (!failure) { saveState({ consecutiveFailures:0, lastAlertAt:readState().lastAlertAt || 0 }); console.log("Vaprizzio health OK"); process.exit(0); }
 const previous = readState();

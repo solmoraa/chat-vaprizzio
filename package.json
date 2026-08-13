@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Agente de ventas Vaprizzio: OpenClaw, WhatsApp, Instagram y Google Sheets",
+  "description": "Agente de ventas Vaprizzio: OpenClaw, WhatsApp, Messenger, Instagram y Google Sheets",
   "engines": { "node": ">=22" },
   "scripts": {
     "dev": "tsx watch src/server.ts",
@@ -13,6 +13,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "audit:secrets": "node scripts/check-secrets.mjs",
+    "sync:openclaw": "node scripts/sync-openclaw-workspace.mjs",
     "monitor:health": "node scripts/monitor-health.mjs",
     "verify": "npm run typecheck && npm test && npm run audit:secrets"
   },

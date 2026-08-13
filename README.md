@@ -12,7 +12,7 @@ Agente de atención y ventas para Vaprizzio. WhatsApp (mediante OpenClaw) e Inst
 - Filtro obligatorio `Activo=SI` y `Stock>0`.
 - Herramientas deterministas para precio, stock, negocio, mayorista, carrito, resumen y takeover.
 - Memoria SQLite aislada por `channel + customer_id`.
-- Debounce real de 2 segundos.
+- Debounce real de 6 segundos desde el último mensaje, igual en WhatsApp, Messenger e Instagram.
 - Estados `AI_ACTIVE`, `WAITING_HUMAN`, `HUMAN_ACTIVE`; en los dos últimos la capa bloquea herramientas de IA.
 - Precio negociado persistente y reanudación explícita.
 - Instagram con verificación de webhook y firma HMAC.
@@ -120,9 +120,9 @@ openclaw dashboard
 6. Restringir `channels.whatsapp.allowFrom` a teléfonos propios de prueba.
 7. Configurar un `OPENCLAW_HOOK_TOKEN` exclusivo y el mismo valor en `.env` y en la configuración local del gateway.
 8. Iniciar este servicio y luego el gateway; comprobar `openclaw gateway status`.
-9. Enviar desde un teléfono permitido: `Hola`, luego dentro de dos segundos `tenes Miami?`, luego `cuanto sale?`. Debe procesarse como un bloque.
+9. Enviar desde un teléfono permitido: `Hola`, luego dentro de seis segundos `tenes Miami?`, luego `cuanto sale?`. Debe procesarse como un bloque.
 
-Para conservar el debounce, el hook de mensajes entrantes de WhatsApp debe reenviar cada mensaje a `POST /webhooks/openclaw/inbound` y no activar una segunda ruta directa al agente. Esa ruta persiste el mensaje, respeta takeover y recién despacha a OpenClaw tras dos segundos de silencio. Verificar en TEST que cada bloque genera una sola ejecución antes de habilitar más remitentes.
+Para conservar el debounce, el hook de mensajes entrantes de WhatsApp debe reenviar cada mensaje a `POST /webhooks/openclaw/inbound` y no activar una segunda ruta directa al agente. Esa ruta persiste el mensaje, respeta takeover y recién despacha a OpenClaw tras seis segundos de silencio. Messenger e Instagram usan la misma espera. Verificar en TEST que cada bloque genera una sola ejecución antes de habilitar más remitentes.
 
 Para desconectar: cerrar la sesión desde Dispositivos vinculados y quitar/deshabilitar el canal en OpenClaw. Las credenciales de WhatsApp residen fuera del repo bajo el estado local de OpenClaw.
 
@@ -186,6 +186,49 @@ npm run verify
 Los tests cubren matching, productos agotados/inactivos, perfiles, mayorista, carrito, debounce, producción accidental, takeover, reanudación, precio negociado y prohibición de descontar sin confirmación.
 
 Los logs estructurados incluyen request, herramienta y error. Headers de autorización y secretos internos se redactan. No almacenar tokens, mensajes innecesariamente sensibles ni credenciales. SQLite y logs están ignorados por Git.
+
+## Actualizar el servidor y asegurar atención 24/7
+
+Después de cada cambio de instrucciones, sincronizar el workspace real del agente de ventas; editar solamente los archivos del repo no alcanza:
+
+```bash
+cd /home/openclaw/apps/chat-vaprizzio
+git pull --ff-only
+npm ci
+npm run verify
+npm run build
+sed -i 's/^DEBOUNCE_MS=.*/DEBOUNCE_MS=6000/' .env
+npm run sync:openclaw
+systemctl --user restart chat-vaprizzio-test.service
+```
+
+El gateway de OpenClaw es compartido por Telegram y los canales comerciales. En este servidor la unidad real es la unidad de sistema; debe estar habilitada al iniciar el VPS y reiniciarse sola si se corta. La unidad de usuario duplicada debe quedar deshabilitada para evitar dos gateways compitiendo:
+
+```bash
+sudo install -d -m 755 /etc/systemd/system/openclaw-gateway.service.d
+sudo install -m 644 deploy/openclaw-gateway-availability.conf /etc/systemd/system/openclaw-gateway.service.d/availability.conf
+systemctl --user disable --now openclaw-gateway.service 2>/dev/null || true
+sudo systemctl daemon-reload
+sudo systemctl enable --now openclaw-gateway.service
+sudo systemctl restart openclaw-gateway.service
+sudo install -m 755 deploy/openclaw-telegram-watchdog.sh /usr/local/sbin/openclaw-telegram-watchdog
+sudo install -m 644 deploy/openclaw-telegram-watchdog.service /etc/systemd/system/openclaw-telegram-watchdog.service
+sudo install -m 644 deploy/openclaw-telegram-watchdog.timer /etc/systemd/system/openclaw-telegram-watchdog.timer
+sudo systemctl daemon-reload
+sudo systemctl enable --now openclaw-telegram-watchdog.timer
+```
+
+Instalar también el monitor, que verifica cada minuto tanto el backend como el gateway y avisa por Telegram luego de fallas consecutivas:
+
+```bash
+install -d -m 700 ~/.config/systemd/user
+install -m 644 deploy/chat-vaprizzio-monitor.service ~/.config/systemd/user/chat-vaprizzio-monitor.service
+install -m 644 deploy/chat-vaprizzio-monitor.timer ~/.config/systemd/user/chat-vaprizzio-monitor.timer
+systemctl --user daemon-reload
+systemctl --user enable --now chat-vaprizzio-monitor.timer
+```
+
+Verificar al final con `systemctl is-enabled openclaw-gateway.service`, `systemctl is-active openclaw-gateway.service`, `openclaw channels status --probe`, `systemctl list-timers openclaw-telegram-watchdog.timer` y `systemctl --user list-timers chat-vaprizzio-monitor.timer`. El watchdog exige dos controles fallidos consecutivos antes de reiniciar el gateway, para evitar reinicios por una demora aislada. Esto fortalece la disponibilidad de Telegram sin modificar el workspace ni los conocimientos de `vaprizziobot`.
 
 ## Mantenimiento
 

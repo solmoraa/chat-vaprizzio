@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const WHATSAPP_PARITY_CONTEXT = "[Política de canal: aplicá exactamente los mismos conocimientos, respuestas, tono, herramientas, validaciones, pausas humanas, alertas y reglas comerciales vigentes de WhatsApp. El canal solo cambia el transporte.]";
 type AgentRunner = (file: string, args: string[]) => Promise<{ stdout: string }>;
 const defaultRunner: AgentRunner = async (file, args) => {
   const result = await execFileAsync(file, args, { timeout:120_000, maxBuffer:2_000_000 });
@@ -17,7 +18,7 @@ export class OpenClawClient {
   }
 
   async reply(channel: string, customerId: string, messages: string[]) {
-    const prompt = `[Canal: ${channel}]\n[CustomerId: ${customerId}]\n${messages.join("\n")}`;
+    const prompt = `[Canal: ${channel}]\n[CustomerId: ${customerId}]\n${WHATSAPP_PARITY_CONTEXT}\n${messages.join("\n")}`;
     const { stdout } = await this.runner(this.cliPath, [
       "agent", "--agent", this.agentId,
       "--session-key", `${channel}:${customerId}`,
