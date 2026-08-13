@@ -27,7 +27,13 @@ export class TelegramNotifier implements HumanNotifier {
 
   async notify(v: HumanNotification) {
     if (!this.token || this.chatIds.length === 0) throw new Error("TELEGRAM_NOT_CONFIGURED");
-    const resolvedName = await this.resolveCustomerName?.(v.channel, v.customerId);
+    let resolvedName: string | null | undefined;
+    try {
+      resolvedName = await this.resolveCustomerName?.(v.channel, v.customerId);
+    } catch {
+      // El nombre visible es informativo: una falla de Meta nunca debe impedir la alerta.
+      resolvedName = null;
+    }
     const customer = resolvedName ? `${resolvedName} (ID: ${v.customerId})` : v.customerId;
     const latestMessage = (v.messages.at(-1)?.trim() || "No disponible").replace(/\b\d{16,24}\b/g, value => `***${value.slice(-4)}`);
     const text = [`INTERVENCION HUMANA`, `Canal: ${v.channel}`, `Cliente: ${customer}`, v.quantity ? `Cantidad: ${v.quantity}` : "", v.products?.length ? `Productos: ${v.products.join(", ")}` : "", `Motivo: ${v.reason}`, `Mensaje del cliente: ${latestMessage}`].filter(Boolean).join("\n");

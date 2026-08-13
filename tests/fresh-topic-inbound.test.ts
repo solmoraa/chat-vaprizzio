@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isArrivalUpdate, opensFreshTopic } from "../src/services/fresh-topic.js";
+import { arrivalUpdateKind, isArrivalUpdate, opensFreshTopic } from "../src/services/fresh-topic.js";
 
 describe("reactivación de temas nuevos al ingresar mensajes", () => {
   it.each([
@@ -23,9 +23,31 @@ describe("reactivación de temas nuevos al ingresar mensajes", () => {
     "estoy a dos cuadras",
     "ya estoy a la vuelta",
     "llegue, estoy afuera",
-    "en 5 minutos estoy"
+    "en 5 minutos estoy",
+    "estoy afura",
+    "toy afuera",
+    "en la puerta",
+    "toy"
   ])("deja pasar la llegada %s durante una pausa humana", message => {
     expect(isArrivalUpdate(message)).toBe(true);
+  });
+
+  it.each([
+    ["afuera", "outside"],
+    ["estoy afura", "outside"],
+    ["toy en la puerta", "outside"],
+    ["toy", "outside"],
+    ["estoy a tres cuadras", "near"],
+    ["ya voy llegando", "near"]
+  ])("clasifica %s como %s", (message, kind) => {
+    expect(arrivalUpdateKind(message)).toBe(kind);
+  });
+
+  it.each([
+    "hacen envios fuera de CABA",
+    "te aviso cuando llegue",
+  ])("no confunde una referencia sin llegada: %s", message => {
+    expect(arrivalUpdateKind(message)).toBeNull();
   });
 
   it.each([

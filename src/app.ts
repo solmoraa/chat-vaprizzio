@@ -10,7 +10,7 @@ import type { TakeoverService } from "./services/takeover-service.js";
 import { verifyMetaSignature } from "./channels/instagram/signature.js";
 import type { InstagramClient } from "./channels/instagram/client.js";
 import type { Channel } from "./domain/types.js";
-import { isArrivalUpdate, opensFreshTopic } from "./services/fresh-topic.js";
+import { arrivalUpdateKind, opensFreshTopic, type ArrivalUpdateKind } from "./services/fresh-topic.js";
 
 export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send" | "isAutomatedEcho" | "diagnostics">; }
 
@@ -32,6 +32,25 @@ export function createApp(d: AppDependencies) {
       && instagram.subscription?.messagingPostbacks === true;
     return res.status(ok ? 200 : 503).json({ ok, channels });
   });
+
+  const deliverPausedArrival = async (channel: Channel, customerId: string, messages: string[], kind: ArrivalUpdateKind) => {
+    const customerMessage = kind === "outside" ? "Ya salgo!" : "Dale, te esperamos";
+    const status = messages.join(" | ");
+    const reason = kind === "outside"
+      ? `🚨🚨🚨 CLIENTE AFUERA O EN LA PUERTA DEL LOCAL 🚨🚨🚨 Estado: ${status}`
+      : `🚨 CLIENTE LLEGANDO O CERCA DEL LOCAL 🚨 Estado: ${status}`;
+    try {
+      await d.takeover.request(channel, customerId, reason, undefined, undefined, true);
+    } catch (error) {
+      logger.error({ err:error, channel }, "arrival_notification_failed");
+    }
+    if (channel === "whatsapp") await d.openclaw.sendDirect(channel, customerId, customerMessage, d.config.WHATSAPP_ACCOUNT);
+    else {
+      if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
+      await d.instagram.send(channel, customerId, customerMessage);
+    }
+    logger.info({ channel, kind }, "paused_arrival_handled");
+  };
 
   const rate = new Map<string, { minute:number; count:number }>();
   app.use("/api/tools", (req, res, next) => {
@@ -111,8 +130,14 @@ export function createApp(d: AppDependencies) {
       const text = [event.message?.text?.trim() ?? event.text?.trim(), attachmentText].filter(Boolean).join("\n");
       if (!customerId || !text) continue;
       const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(text); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
+      const arrivalKind = arrivalUpdateKind(text);
+      if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
+        req.log.info({ channel, arrivalKind }, "meta_paused_arrival_queued");
+        d.debounce.push(`${channel}:${customerId}`, text, messages => deliverPausedArrival(channel, customerId, messages, arrivalKind));
+        continue;
+      }
       if (opensFreshTopic(text)) d.takeover.resume(channel, customerId);
-      if (!d.takeover.canAiReply(channel, customerId) && !isArrivalUpdate(text)) { req.log.info({ channel }, "meta_message_paused"); continue; }
+      if (!d.takeover.canAiReply(channel, customerId)) { req.log.info({ channel }, "meta_message_paused"); continue; }
       req.log.info({ channel }, "meta_message_queued");
       d.debounce.push(`${channel}:${customerId}`, text, async messages => {
         if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
@@ -132,8 +157,13 @@ export function createApp(d: AppDependencies) {
     const { channel, customerId, message } = req.body as { channel: "whatsapp"; customerId: string; message: string };
     if (channel !== "whatsapp" || !customerId || !message) return res.sendStatus(400);
     const c = d.conversations.getOrCreate(channel, customerId); c.lastMessages.push(message); c.lastActivity = new Date().toISOString(); d.conversations.save(c);
+    const arrivalKind = arrivalUpdateKind(message);
+    if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
+      d.debounce.push(`${channel}:${customerId}`, message, messages => deliverPausedArrival(channel, customerId, messages, arrivalKind));
+      return res.json({ accept:true, queued:true, state:c.state, arrival:true });
+    }
     if (opensFreshTopic(message)) d.takeover.resume(channel, customerId);
-    const accept = d.takeover.canAiReply(channel, customerId) || isArrivalUpdate(message);
+    const accept = d.takeover.canAiReply(channel, customerId);
     if (accept) d.debounce.push(`${channel}:${customerId}`, message, messages => d.openclaw.dispatch(channel, customerId, messages));
     res.json({ accept, queued: accept, state: accept ? "AI_ACTIVE" : c.state });
   });

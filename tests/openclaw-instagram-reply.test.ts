@@ -2,6 +2,19 @@ import { describe, expect, it, vi } from "vitest";
 import { OpenClawClient } from "../src/agent/openclaw-client.js";
 
 describe("respuesta de OpenClaw para Instagram", () => {
+  it("envia una respuesta directa por la cuenta correcta de WhatsApp", async () => {
+    const runner = vi.fn().mockResolvedValue({ stdout:'{"ok":true}' });
+    const client = new OpenClawClient("http://127.0.0.1:18789", "token", "vaprizzio-sales-test", "openclaw", runner);
+
+    await client.sendDirect("whatsapp", "5491157174460@s.whatsapp.net", "Ya salgo!", "vaprizzio-sales");
+
+    expect(runner).toHaveBeenCalledWith("openclaw", [
+      "message", "send", "--channel", "whatsapp",
+      "--target", "+5491157174460",
+      "--message", "Ya salgo!", "--json",
+      "--account", "vaprizzio-sales"
+    ]);
+  });
   it("ejecuta una sesión aislada y devuelve el texto visible", async () => {
     const runner = vi.fn().mockResolvedValue({
       stdout:'OpenClaw banner\n{"finalAssistantVisibleText":"Hola! Cómo estás?"}'

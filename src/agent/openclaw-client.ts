@@ -17,6 +17,17 @@ export class OpenClawClient {
     if (!res.ok) throw new Error(`OPENCLAW_ERROR:${res.status}`);
   }
 
+  async sendDirect(channel: "whatsapp", customerId: string, message: string, account?: string) {
+    const target = /^\d{8,15}$/.test(customerId)
+      ? `+${customerId}`
+      : customerId.endsWith("@s.whatsapp.net")
+        ? `+${customerId.slice(0, -"@s.whatsapp.net".length)}`
+        : customerId;
+    const args = ["message", "send", "--channel", channel, "--target", target, "--message", message, "--json"];
+    if (account) args.push("--account", account);
+    await this.runner(this.cliPath, args);
+  }
+
   async reply(channel: string, customerId: string, messages: string[]) {
     const prompt = `[Canal: ${channel}]\n[CustomerId: ${customerId}]\n${WHATSAPP_PARITY_CONTEXT}\n${messages.join("\n")}`;
     const { stdout } = await this.runner(this.cliPath, [

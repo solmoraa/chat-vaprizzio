@@ -16,7 +16,19 @@ export const opensFreshTopic = (value: string) => {
   return greeting || commercialQuestion;
 };
 
-export const isArrivalUpdate = (value: string) => {
+export type ArrivalUpdateKind = "outside" | "near";
+
+export const arrivalUpdateKind = (value: string): ArrivalUpdateKind | null => {
   const text = normalized(value);
-  return /\b(afuera|en la puerta|ya llegue|llegue al local|estoy llegando|estoy cerca|a la vuelta|a pocas cuadras|a unas? cuadras|a (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez) cuadras|por llegar|proximo a llegar|llego en \d+|en \d+ (?:minutos?|mins?|min) (?:llego|estoy))\b/.test(text);
+  if (!text) return null;
+
+  const outside = /\b(afuera+|afura+|afuer|en (?:la )?puerta|puerta|en (?:el )?porton|porton|aca afuera|aca en la puerta)\b/.test(text)
+    || /\b(?:estoy|toy|stoi|aca) fuera\b/.test(text)
+    || /^(?:ya )?(?:estoy|toy|stoi|aca|llegue|llege|yegue)(?: al local)?$/i.test(text);
+  if (outside) return "outside";
+
+  const near = /\b(estoy llegando|toy llegando|stoi llegando|ya voy llegando|voy llegando|estoy cerca|toy cerca|a la vuelta|a pocas cuadras|a unas? cuadras|a (?:\d+|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez) cuadras|por llegar|proximo a llegar|llego en \d+|en \d+ (?:minutos?|mins?|min) (?:llego|estoy))\b/.test(text);
+  return near ? "near" : null;
 };
+
+export const isArrivalUpdate = (value: string) => arrivalUpdateKind(value) !== null;

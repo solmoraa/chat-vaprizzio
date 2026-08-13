@@ -49,4 +49,16 @@ describe("TelegramNotifier", () => {
     expect(body).toContain("Cliente: @cliente_vaprizzio (ID: 17890001)");
     expect(resolver).toHaveBeenCalledWith("instagram", "17890001");
   });
+
+  it("envia la alerta con el ID si Meta no puede resolver el nombre", async () => {
+    const request = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("{}", { status:200 }));
+    const resolver = vi.fn().mockRejectedValue(new Error("META_PROFILE_ERROR"));
+    const notifier = new TelegramNotifier("token-test", "6579754152", resolver);
+
+    await notifier.notify({ channel:"messenger", customerId:"psid-123", reason:"cliente afuera", messages:["toy en la puerta"] });
+
+    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body)).text as string;
+    expect(body).toContain("Cliente: psid-123");
+    expect(body).toContain("Mensaje del cliente: toy en la puerta");
+  });
 });
