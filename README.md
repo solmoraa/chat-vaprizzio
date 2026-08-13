@@ -246,6 +246,20 @@ systemctl --user enable --now chat-vaprizzio-monitor.timer
 
 Verificar al final con `systemctl is-enabled openclaw-gateway.service`, `systemctl is-active openclaw-gateway.service`, `openclaw channels status --probe`, `systemctl list-timers openclaw-telegram-watchdog.timer` y `systemctl --user list-timers chat-vaprizzio-monitor.timer`. El watchdog exige dos controles fallidos consecutivos antes de reiniciar el gateway, para evitar reinicios por una demora aislada. Esto fortalece la disponibilidad de Telegram sin modificar el workspace ni los conocimientos de `vaprizziobot`.
 
+## Corrección del medio de venta en vaprizziobot
+
+El instalador `deploy/install-vaprizziobot-sale-platform-fix.sh` agrega una
+operación administrativa que modifica exclusivamente la plataforma de una
+venta existente. Antes de instalar crea un respaldo privado del agente. La
+instalación no modifica ninguna venta; una actualización real requiere número
+de orden y plataforma. También agrega una validación obligatoria para impedir
+que una venta manual se registre sin que el usuario haya confirmado el canal.
+
+```bash
+cd /home/openclaw/apps/chat-vaprizzio
+bash deploy/install-vaprizziobot-sale-platform-fix.sh
+```
+
 ## Mantenimiento
 
 - Catálogo/precios/stock: editar `PRODUCTOS`.
