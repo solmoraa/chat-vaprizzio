@@ -22,4 +22,22 @@ describe("nombre del cliente de Meta", () => {
     const client = new InstagramClient("token", "v26.0");
     expect(await client.customerName("instagram", "789")).toBeNull();
   });
+
+  it("diagnostica token y campos suscriptos sin exponer credenciales", async () => {
+    const request = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ id:"ig-account", username:"vaprizzio" }), { status:200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ data:[{ id:"app-id", subscribed_fields:["messages", "messaging_postbacks"] }] }), { status:200 }));
+    const client = new InstagramClient("page-token", "v26.0", "instagram-token", "ig-account");
+
+    await expect(client.diagnostics()).resolves.toMatchObject({
+      instagram:{
+        configured:true,
+        configuredAccountId:"ig-account",
+        tokenAccount:{ ok:true, id:"ig-account", username:"vaprizzio" },
+        subscription:{ ok:true, messages:true, messagingPostbacks:true, appIds:["app-id"] },
+      },
+    });
+    expect(request.mock.calls.every(call => !String(call[0]).includes("page-token"))).toBe(true);
+    expect(String(request.mock.calls[1]?.[0])).toContain("/ig-account/subscribed_apps");
+  });
 });

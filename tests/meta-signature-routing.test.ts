@@ -56,6 +56,11 @@ describe("firmas separadas de Meta", () => {
     expect((await post(body, "instagram-secret")).status).toBe(200);
   });
 
+  it("acepta Instagram firmado por la app principal durante una migraciÃ³n", async () => {
+    const body = JSON.stringify({ object:"instagram", entry:[] });
+    expect((await post(body, "messenger-secret")).status).toBe(200);
+  });
+
   it("mantiene Messenger con la clave general de Meta", async () => {
     const body = JSON.stringify({ object:"page", entry:[] });
     expect((await post(body, "messenger-secret")).status).toBe(200);
@@ -64,6 +69,22 @@ describe("firmas separadas de Meta", () => {
   it("acepta eventos de Instagram dentro de changes.value", async () => {
     const body = JSON.stringify({ object:"instagram", entry:[{ changes:[{ field:"messages", value:{ sender:{ id:"cliente" }, recipient:{ id:"cuenta" }, message:{ text:"Hola" } } }] }] });
     expect((await post(body, "instagram-secret")).status).toBe(200);
+  });
+
+  it("encola el formato oficial entry.messaging de Instagram", async () => {
+    const { app, debounce } = buildInspectableApp();
+    server = app.listen(0, "127.0.0.1");
+    await new Promise<void>(resolve => server!.once("listening", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("NO_ADDRESS");
+    const body = JSON.stringify({ object:"instagram", entry:[{ messaging:[{ sender:{ id:"cliente" }, recipient:{ id:"cuenta" }, message:{ text:"Hola desde Instagram" } }] }] });
+    const response = await fetch(`http://127.0.0.1:${address.port}/webhooks/instagram`, {
+      method:"POST",
+      headers:{ "content-type":"application/json", "x-hub-signature-256":signature(body, "instagram-secret") },
+      body,
+    });
+    expect(response.status).toBe(200);
+    expect(debounce.push).toHaveBeenCalledWith("instagram:cliente", "Hola desde Instagram", expect.any(Function));
   });
 
   it("encola el formato changes.value.messages de Instagram", async () => {

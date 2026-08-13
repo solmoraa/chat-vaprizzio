@@ -12,7 +12,7 @@ import type { InstagramClient } from "./channels/instagram/client.js";
 import type { Channel } from "./domain/types.js";
 import { opensFreshTopic } from "./services/fresh-topic.js";
 
-export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send" | "isAutomatedEcho">; }
+export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send" | "isAutomatedEcho" | "diagnostics">; }
 
 export function createApp(d: AppDependencies) {
   const app = express();
@@ -20,6 +20,18 @@ export function createApp(d: AppDependencies) {
   app.use(pinoHttp({ logger }));
   app.get("/health", (_req, res) => res.json({ ok: true, env: d.config.APP_ENV, productionAllowed: d.config.ALLOW_PRODUCTION, catalog: d.config.CATALOG_PROVIDER }));
   app.get("/ready", async (_req, res) => { try { await d.tools.catalog.priceList(); res.json({ ok:true, catalog:true }); } catch { res.status(503).json({ ok:false, catalog:false }); } });
+  app.get("/diagnostics/meta", async (req, res) => {
+    if (!d.config.TOOL_API_TOKEN) return res.status(503).json({ ok:false, error:"DIAGNOSTICS_TOKEN_NOT_CONFIGURED" });
+    if (req.header("authorization") !== `Bearer ${d.config.TOOL_API_TOKEN}`) return res.sendStatus(401);
+    if (!d.instagram) return res.status(503).json({ ok:false, error:"META_CLIENT_NOT_CONFIGURED" });
+    const channels = await d.instagram.diagnostics();
+    const instagram = channels.instagram;
+    const ok = instagram.configured
+      && instagram.tokenAccount?.ok === true
+      && instagram.subscription?.messages === true
+      && instagram.subscription?.messagingPostbacks === true;
+    return res.status(ok ? 200 : 503).json({ ok, channels });
+  });
 
   const rate = new Map<string, { minute:number; count:number }>();
   app.use("/api/tools", (req, res, next) => {
@@ -54,10 +66,13 @@ export function createApp(d: AppDependencies) {
     };
     type MetaChangeValue = MetaEvent & { messaging?: MetaEvent[]; messages?: MetaEvent[] };
     const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: MetaEvent[]; changes?: Array<{ field?:string; value?:MetaChangeValue }> }> };
-    const signatureSecret = body.object === "page"
-      ? d.config.META_APP_SECRET
-      : d.config.META_INSTAGRAM_APP_SECRET || d.config.META_APP_SECRET;
-    if (!verifyMetaSignature(raw, req.header("x-hub-signature-256"), signatureSecret)) return res.sendStatus(401);
+    const signatureSecrets = body.object === "page"
+      ? [d.config.META_APP_SECRET]
+      : [d.config.META_INSTAGRAM_APP_SECRET, d.config.META_APP_SECRET].filter(Boolean);
+    if (!signatureSecrets.some(secret => verifyMetaSignature(raw, req.header("x-hub-signature-256"), secret))) {
+      req.log.warn({ object:body.object ?? "unknown", hasSignature:Boolean(req.header("x-hub-signature-256")) }, "meta_webhook_signature_rejected");
+      return res.sendStatus(401);
+    }
     const channel: Channel = body.object === "page" ? "messenger" : "instagram";
     const events = body.entry?.flatMap(entry => [
       ...(entry.messaging ?? []),
@@ -70,6 +85,14 @@ export function createApp(d: AppDependencies) {
       }),
     ]) ?? [];
     req.log.info({ channel, eventCount:events.length }, "meta_webhook_received");
+    if (events.length === 0) {
+      req.log.warn({
+        channel,
+        object:body.object ?? "unknown",
+        entryKeys:body.entry?.map(entry => Object.keys(entry)) ?? [],
+        changeFields:body.entry?.flatMap(entry => entry.changes?.map(change => change.field ?? "unknown") ?? []) ?? [],
+      }, "meta_webhook_unhandled");
+    }
     for (const event of events) {
       if (event.message?.is_echo) {
         if (event.message.app_id != null) continue;

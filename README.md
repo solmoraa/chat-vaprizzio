@@ -132,7 +132,7 @@ Para desconectar: cerrar la sesión desde Dispositivos vinculados y quitar/desha
 2. Añadir Instagram y Webhooks.
 3. Usar una cuenta Instagram profesional de TEST vinculada a una Página de Facebook de TEST.
 4. Generar un access token de prueba con los permisos que Meta muestre para Instagram Messaging; no copiarlo al repo.
-5. Configurar `INSTAGRAM_ACCOUNT_ID`, `META_ACCESS_TOKEN`, `META_APP_SECRET` y un `META_VERIFY_TOKEN` aleatorio en `.env`.
+5. Configurar `META_INSTAGRAM_ACCESS_TOKEN`, `META_INSTAGRAM_APP_SECRET` y un `META_VERIFY_TOKEN` aleatorio en `.env`. Con Instagram Login el backend usa `/me`; `INSTAGRAM_ACCOUNT_ID` queda solo como referencia y no debe reemplazarse por el `instagram_business_account.id` obtenido mediante Facebook Login.
 6. Publicar temporalmente `https://TU-HOST/webhooks/instagram` mediante un túnel HTTPS o entorno TEST.
 7. En Meta Webhooks, usar esa callback URL y el mismo verify token.
 8. Suscribir los eventos de mensajes requeridos por la versión actual de Meta y agregar las cuentas de prueba/roles a la app.

@@ -52,7 +52,7 @@ describe("formato de respuestas Meta", () => {
 
     await client.send("instagram", "cliente", "Hola");
 
-    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("graph.instagram.com/v26.0/ig-account/messages");
+    expect(String(fetchMock.mock.calls[0]?.[0])).toContain("graph.instagram.com/v26.0/me/messages");
     expect(String(fetchMock.mock.calls[0]?.[0])).toContain("instagram-token");
     expect(client.isAutomatedEcho("instagram", "cliente", "Hola")).toBe(true);
     expect(client.isAutomatedEcho("instagram", "cliente", "Hola")).toBe(false);
