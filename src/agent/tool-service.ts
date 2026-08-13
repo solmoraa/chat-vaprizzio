@@ -42,7 +42,7 @@ export class AgentToolService {
         throw new Error("DELIVERY_METHOD_INVALID");
       }
       case "solicitar_envio_app": {
-        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo y mañana lo despachamos" };
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo desde la web y mañana lo despachamos:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const result = await this.takeover.request(channel, customerId, "Cotizar Didi o Uber Envíos", undefined, [String(args.address ?? "")]);
         return { action: "CONSULTAR", customerMessage: "Dame un segundo que consulto el valor del envío", state: result.state };
       }
@@ -108,7 +108,7 @@ export class AgentToolService {
         return { action:"RECORDATORIO_URGENTE", customerMessage:"Ya salgo! Disculpá la demora", state:result.state, pausedUntil:result.pausedUntil };
       }
       case "coordinar_visita_local": {
-        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/" };
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const visitType = String(args.visitType ?? "retiro").toLowerCase();
         const product = String(args.product ?? "");
         const preferredTime = String(args.preferredTime ?? "");
@@ -161,22 +161,22 @@ export class AgentToolService {
         return { action: "ATENCION_HUMANA", customerMessage: "Dale, ya te atiendo!", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_llegada_sin_horario": {
-        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/" };
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const arrivalStatus = String(args.arrivalStatus ?? "ya está viniendo");
         const product = String(args.product ?? "");
         const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE VINIENDO AL LOCAL SIN HORARIO ACORDADO 🚨 Estado: ${arrivalStatus}`, undefined, product ? [product] : undefined);
         return { action: "ATENCION_HUMANA", customerMessage: "Dale, dame un segundo que verifico que haya alguien para recibirte", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_pedido_inmediato_app": {
-        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo y mañana lo despachamos" };
+        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo desde la web y mañana lo despachamos:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const product = String(args.product ?? "").trim();
         if (!product) return { action:"PEDIR_PRODUCTO", requires:["product"], customerMessage:"Decime qué vape buscabas así te paso el enlace para comprarlo" };
         const candidateUrl = String(args.productUrl ?? "").trim();
         const productUrl = /^https:\/\/www\.vaprizzio\.com\/productos\//i.test(candidateUrl) ? candidateUrl : "https://www.vaprizzio.com/productos/";
-        return { action:"COMPLETAR_COMPRA_WEB", customerMessage:`Primero hacé la compra desde la web:\n${productUrl}\n\nCuando la termines, mandame el comprobante y organizamos el envío con Uber o Didi 😊`, productUrl, notificationSent:false };
+        return { action:"COMPLETAR_COMPRA_WEB", customerMessage:`Primero hacé la compra desde la web:\n${productUrl}\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊`, productUrl, notificationSent:false };
       }
       case "reportar_consulta_fuera_horario": {
-        if (buenosAiresHour() >= 23) return { action:"PEDIDO_MANANA", customerMessage:"Buenas! La tienda está cerrada. Nuestro horario es de 10 a 19 hs. Si querés hacer un pedido para recibirlo mañana, podés hacerlo desde nuestra web:\nhttps://www.vaprizzio.com/productos/" };
+        if (buenosAiresHour() >= 23) return { action:"PEDIDO_MANANA", customerMessage:"Buenas! La tienda está cerrada. Nuestro horario es de 10 a 19 hs. Si querés hacer un pedido para recibirlo mañana, podés hacerlo desde nuestra web:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const result = await this.takeover.request(channel, customerId, "Posible pedido o pedido fuera del horario de atención", undefined, triggerMessage ? [triggerMessage] : undefined);
         return { action:"ATENCION_HUMANA", customerMessage:"Buenas! Cómo estás? La tienda está cerrada, pero dejame que consulto a los chicos. Uno de ellos te va a responder. Muchas gracias por escribirnos!", state:result.state, pausedUntil:result.pausedUntil };
       }

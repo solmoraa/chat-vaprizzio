@@ -4,6 +4,8 @@ import { ConversationRepository } from "../src/database/conversation-repository.
 import { TakeoverService } from "../src/services/takeover-service.js";
 
 describe("pedido inmediato por Uber o Didi", () => {
+  const channels = ["whatsapp", "messenger", "instagram"] as const;
+
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-08-09T20:00:00Z"));
@@ -11,7 +13,7 @@ describe("pedido inmediato por Uber o Didi", () => {
 
   afterEach(() => vi.useRealTimers());
 
-  it("manda primero a comprar por la web y no alerta antes del comprobante", async () => {
+  it.each(channels)("manda primero a comprar por la web en %s y recuerda el comprobante sin alertar antes", async channel => {
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();
     const takeover = new TakeoverService(repo, { notify });
@@ -19,7 +21,7 @@ describe("pedido inmediato por Uber o Didi", () => {
     const message = "Dale, mandame el Pulse X Miami Mint a Av Siempre Viva 742";
 
     const result = await tools.execute("reportar_pedido_inmediato_app", {
-      channel: "whatsapp", customerId: "pedido-ya", product: "Geek Bar Pulse X Miami Mint",
+      channel, customerId: `pedido-ya-${channel}`, product: "Geek Bar Pulse X Miami Mint",
       address: "Av Siempre Viva 742", productUrl:"https://www.vaprizzio.com/productos/geek-bar-pulse-x1/", triggerMessage: message
     });
 
@@ -28,9 +30,9 @@ describe("pedido inmediato por Uber o Didi", () => {
       action:"COMPLETAR_COMPRA_WEB",
       productUrl:"https://www.vaprizzio.com/productos/geek-bar-pulse-x1/",
       notificationSent:false,
-      customerMessage:expect.stringContaining("Primero hacé la compra desde la web")
+      customerMessage:expect.stringContaining("Si pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊")
     });
-    expect(takeover.canAiReply("whatsapp", "pedido-ya")).toBe(true);
+    expect(takeover.canAiReply(channel, `pedido-ya-${channel}`)).toBe(true);
   });
 
   it("pide lo que falta sin enviar una alerta prematura", async () => {
@@ -58,7 +60,10 @@ describe("pedido inmediato por Uber o Didi", () => {
       channel:"whatsapp", customerId:"pedido-22", product:"Pulse X", address:"Dirección 123"
     });
 
-    expect(result).toMatchObject({ action:"PROGRAMAR_MANANA", customerMessage:expect.stringContaining("mañana") });
+    expect(result).toMatchObject({
+      action:"PROGRAMAR_MANANA",
+      customerMessage:expect.stringContaining("Si pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊")
+    });
     expect(notify).not.toHaveBeenCalled();
   });
 });

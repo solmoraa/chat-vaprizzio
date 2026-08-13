@@ -13,4 +13,10 @@ describe("conocimiento compartido entre canales", () => {
     expect(instructions).toContain("6 segundos");
     expect(instructions).toMatch(/reinicio (por|de) 12 horas/i);
   });
+
+  it.each([agents, skill])("recuerda el comprobante al enviar a comprar por transferencia", instructions => {
+    expect(instructions).toContain("Si pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊");
+    expect(instructions).toMatch(/WhatsApp, Messenger e Instagram/i);
+    expect(instructions).toMatch(/solamente para mirar stock, sabores, modelos, precios o información/i);
+  });
 });
