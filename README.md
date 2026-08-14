@@ -254,6 +254,14 @@ venta existente. Antes de instalar crea un respaldo privado del agente. La
 instalación no modifica ninguna venta; una actualización real requiere número
 de orden y plataforma. También agrega una validación obligatoria para impedir
 que una venta manual se registre sin que el usuario haya confirmado el canal.
+Además normaliza los nombres alternativos de la forma de pago (incluido
+`forma_de_pago`, que algunos modelos generan) y obliga al agente a ejecutar un
+solo intento por pedido. La comprobación del instalador usa una lista de
+productos vacía y por eso no escribe en Sheets ni modifica stock.
+Los errores del dispatcher se entregan como JSON estructurado con `ok=false`
+sin un fallo de shell, evitando que Telegram exponga tarjetas `Exec failed`,
+rutas o nombres internos; el agente sigue considerándolos operaciones no
+realizadas.
 
 ```bash
 cd /home/openclaw/apps/chat-vaprizzio
