@@ -26,8 +26,51 @@ describe("precios por cantidad", () => {
     const { tools } = setup();
     const elfbar = await tools.execute("consultar_precio", { channel:"whatsapp", customerId:"mixto", sku:"M1", quantity:3, orderQuantity:5 });
     const ignite = await tools.execute("consultar_precio", { channel:"whatsapp", customerId:"mixto", sku:"M2", quantity:2, orderQuantity:5 });
-    expect(elfbar).toMatchObject({ action:"PROMOCION_5_A_9", unitPriceArs:24_000, lineTotalArs:72_000 });
-    expect(ignite).toMatchObject({ action:"PROMOCION_5_A_9", unitPriceArs:23_000, lineTotalArs:46_000 });
+    expect(elfbar).toMatchObject({ action:"MAYORISTA_5_A_9", unitPriceArs:24_000, lineTotalArs:72_000, purchaseFlow:"FUERA_DE_LA_WEB", webCheckoutAllowed:false, requiresExplicitConfirmation:true });
+    expect(ignite).toMatchObject({ action:"MAYORISTA_5_A_9", unitPriceArs:23_000, lineTotalArs:46_000, purchaseFlow:"FUERA_DE_LA_WEB", webCheckoutAllowed:false, requiresExplicitConfirmation:true });
+  });
+
+  it.each(["whatsapp", "instagram", "messenger"] as const)("notifica una venta confirmada de 5 a 9 y pausa %s", async channel => {
+    const { tools, notify } = setup();
+    const result = await tools.execute("consultar_precio", {
+      channel,
+      customerId:`confirmado-${channel}`,
+      sku:"M1",
+      quantity:3,
+      orderQuantity:5,
+      customerConfirmed:true,
+      confirmedProducts:["3 Elfbar Ice King 40K Miami Mint", "2 Ignite V250 Miami Mint"],
+      triggerMessage:"Dale, quiero esos cinco"
+    });
+
+    expect(result).toMatchObject({
+      action:"COORDINAR_MAYORISTA_5_A_9",
+      customerMessage:"Dale, dame un segundo que coordinamos todo 😊",
+      purchaseFlow:"FUERA_DE_LA_WEB",
+      webCheckoutAllowed:false,
+      notificationSent:true,
+      state:"WAITING_HUMAN"
+    });
+    expect(notify).toHaveBeenCalledOnce();
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({
+      channel,
+      customerId:`confirmado-${channel}`,
+      quantity:5,
+      products:["3 Elfbar Ice King 40K Miami Mint", "2 Ignite V250 Miami Mint"],
+      reason:"Venta de 5 a 9 unidades confirmada: coordinar fuera de la web"
+    }));
+
+    const repeated = await tools.execute("consultar_precio", {
+      channel,
+      customerId:`confirmado-${channel}`,
+      sku:"M1",
+      quantity:3,
+      orderQuantity:5,
+      customerConfirmed:true,
+      confirmedProducts:["3 Elfbar Ice King 40K Miami Mint", "2 Ignite V250 Miami Mint"]
+    });
+    expect(repeated).toMatchObject({ blocked:true, customerMessage:"NO_REPLY", notificationSent:false });
+    expect(notify).toHaveBeenCalledOnce();
   });
 
   it("desde 10 usa la tabla mayorista y no el descuento minorista", async () => {
@@ -55,5 +98,24 @@ describe("uso contextual de enlaces", () => {
       expect(text).toContain("precio, stock, sabores, características");
       expect(text).toMatch(/pide el enlace|pide.*cómo comprar/i);
     }
+  });
+
+  it("prohíbe enviar a la web las ventas confirmadas de 5 a 9", () => {
+    const skill = readFileSync("skills/ventas/SKILL.md", "utf8");
+    const agents = readFileSync("openclaw/workspace/AGENTS.md", "utf8");
+    const plugin = readFileSync("extensions/vaprizzio-tools/index.ts", "utf8");
+    for (const text of [skill, agents]) {
+      expect(text).toMatch(/5 a 9[\s\S]*fuera de la web/i);
+      expect(text).toMatch(/prohibido[\s\S]{0,180}(?:enlace|web)/i);
+      expect(text).toContain("customerConfirmed:true");
+      expect(text).toContain("confirmedProducts");
+      expect(text).toMatch(/alerta a Telegram/i);
+    }
+    expect(plugin).toContain("customerConfirmed:boolean()");
+    expect(plugin).toContain("confirmedProducts");
+    expect(plugin).toContain("la operación se hace fuera de la web");
+    expect(plugin).toContain("requestsFiveToNineVapes");
+    expect(plugin).toContain("REGLA AUTOMATICA PRIORITARIA PARA ESTE TURNO");
+    expect(plugin).toContain("Esta prohibido enviar la pagina");
   });
 });

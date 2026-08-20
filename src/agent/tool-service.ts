@@ -39,6 +39,10 @@ export class AgentToolService {
       case "consultar_precio": {
         const quantity = args.quantity == null ? 1 : Number(args.quantity);
         const orderQuantity = args.orderQuantity == null ? quantity : Number(args.orderQuantity);
+        const customerConfirmed = args.customerConfirmed === true;
+        const confirmedProducts = Array.isArray(args.confirmedProducts)
+          ? args.confirmedProducts.map(String).map(item => item.trim()).filter(Boolean)
+          : [];
         const retailQuote = await this.catalog.priceForOrder(String(args.sku), quantity, orderQuantity);
         if (!retailQuote) return { action:"NO_DISPONIBLE", available:false, customerMessage:"Ese producto no está disponible en este momento" };
         if (orderQuantity >= 10) {
@@ -50,11 +54,48 @@ export class AgentToolService {
           }
           return { action:"MAYORISTA", currency:"USD", exchangeRate:"DOLAR_CRIPTO", finalPrice:true, quantity, orderQuantity, product:retailQuote.product, ...wholesaleQuote };
         }
+        if (orderQuantity >= 5) {
+          const productLabel = `${quantity} ${retailQuote.product.brand} ${retailQuote.product.model} ${retailQuote.product.flavor}`.trim();
+          if (customerConfirmed) {
+            const products = confirmedProducts.length ? confirmedProducts : [productLabel];
+            const result = await this.takeover.request(
+              channel,
+              customerId,
+              "Venta de 5 a 9 unidades confirmada: coordinar fuera de la web",
+              orderQuantity,
+              products,
+              true
+            );
+            return {
+              action:"COORDINAR_MAYORISTA_5_A_9",
+              customerMessage:"Dale, dame un segundo que coordinamos todo 😊",
+              currency:"ARS",
+              finalPrice:true,
+              purchaseFlow:"FUERA_DE_LA_WEB",
+              webCheckoutAllowed:false,
+              notificationSent:true,
+              state:result.state,
+              pausedUntil:result.pausedUntil,
+              ...retailQuote
+            };
+          }
+          return {
+            action:"MAYORISTA_5_A_9",
+            currency:"ARS",
+            finalPrice:true,
+            promotion:"DESCUENTO_2000_POR_UNIDAD",
+            purchaseFlow:"FUERA_DE_LA_WEB",
+            webCheckoutAllowed:false,
+            requiresExplicitConfirmation:true,
+            humanHandoffOnConfirmation:true,
+            ...retailQuote
+          };
+        }
         return {
-          action:orderQuantity >= 5 ? "PROMOCION_5_A_9" : "MINORISTA",
+          action:"MINORISTA",
           currency:"ARS",
           finalPrice:true,
-          promotion:orderQuantity >= 5 ? "DESCUENTO_2000_POR_UNIDAD" : null,
+          promotion:null,
           ...retailQuote
         };
       }
