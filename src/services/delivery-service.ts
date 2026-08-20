@@ -13,7 +13,7 @@ const locations: Record<DeliveryZone, string[]> = {
 export const buenosAiresHour = (now = new Date()) => Number(new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", hour: "2-digit", hour12: false }).format(now));
 
 export class DeliveryService {
-  pickup() { return { method: "RETIRO", price: 0, address: "Av. Larrazábal 3437, Villa Lugano, CABA" }; }
+  pickup() { return { method: "RETIRO", type:"PUNTO_DE_RETIRO_GRATUITO", price: 0, address: "Av. Larrazábal 3437, Villa Lugano, CABA", storefront:false }; }
 
   options(now = new Date()) {
     const hour = buenosAiresHour(now);

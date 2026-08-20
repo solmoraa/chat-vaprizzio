@@ -24,7 +24,7 @@ export class AgentToolService {
         reason:"HUMAN_COORDINATION_ACTIVE",
         customerMessage:"NO_REPLY",
         notificationSent:false,
-        instruction:"Una persona ya está atendiendo esta conversación. No respondas y no envíes otra alerta. Solo un saludo o tema nuevo reactiva el bot; las llegadas al local usan sus herramientas específicas."
+        instruction:"Una persona ya está atendiendo esta conversación. No respondas y no envíes otra alerta. Solo un saludo o tema nuevo reactiva el bot; las llegadas al punto de retiro usan sus herramientas específicas."
       };
     }
     switch (name) {
@@ -91,7 +91,7 @@ export class AgentToolService {
         const product = String(args.product ?? "");
         const isOutside = /\bafuera\b/i.test(status);
         const reason = isOutside
-          ? `🚨🚨 CLIENTE AFUERA DEL LOCAL PARA REALIZAR UN CAMBIO 🚨🚨 Estado: ${status}`
+          ? `🚨🚨 CLIENTE AFUERA DEL PUNTO DE RETIRO PARA REALIZAR UN CAMBIO 🚨🚨 Estado: ${status}`
           : `Cliente por llegar para realizar un cambio: ${status}`;
         const result = await this.takeover.request(channel, customerId, reason, undefined, product ? [product] : undefined, true);
         const customerMessage = isOutside ? "Ya salgo!" : "Dale, te esperamos";
@@ -117,10 +117,10 @@ export class AgentToolService {
         const visitType = String(args.visitType ?? "retiro").toLowerCase();
         const product = String(args.product ?? "");
         const preferredTime = String(args.preferredTime ?? "");
-        const label = visitType === "cambio" ? "cambio de producto en el local" : "retiro en el local";
+        const label = visitType === "cambio" ? "cambio de producto en el punto de retiro" : "retiro en el punto de retiro";
         const details = [product, preferredTime ? `Horario propuesto: ${preferredTime}` : ""].filter(Boolean);
         const result = await this.takeover.request(channel, customerId, `Coordinar horario para ${label}`, undefined, details.length ? details : undefined);
-        return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", state: result.state, pausedUntil: result.pausedUntil };
+        return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", pickupType:"PUNTO_DE_RETIRO_GRATUITO", scheduleConfirmed:false, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_comprobante_web": {
         const deliveryMode = String(args.deliveryMode ?? "sin_definir").toLowerCase();
@@ -138,7 +138,7 @@ export class AgentToolService {
             ? "Gracias por tu compra! 💜🙌 Ahora nos vamos a comunicar para organizar el envío con el auto. Para cualquier cosa estamos en contacto 😊"
             : `${base} Para cualquier cosa estamos en contacto 😊`
           : deliveryMode === "punto_retiro"
-            ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el día y horario de retiro en el local. Para cualquier cosa estamos en contacto 😊"
+            ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el día y horario en el punto de retiro. Para cualquier cosa estamos en contacto 😊"
             : `${base} Para cualquier cosa estamos en contacto 😊`;
         const modeLabel = deliveryMode === "sin_definir" ? "entrega sin definir" : deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
         const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
@@ -163,7 +163,7 @@ export class AgentToolService {
       case "reportar_llegada_sin_producto": {
         const arrivalStatus = String(args.arrivalStatus ?? "ya está viniendo");
         const isOutside = /afuera|en la puerta|llegu[eé]|ya estoy/i.test(arrivalStatus);
-        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "VINIENDO"} AL LOCAL SIN VAPE DECIDIDO 🚨 Estado: ${arrivalStatus}`, undefined, undefined, true);
+        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "VINIENDO"} AL PUNTO DE RETIRO SIN VAPE DECIDIDO 🚨 Estado: ${arrivalStatus}`, undefined, undefined, true);
         return { action: "ATENCION_HUMANA", customerMessage: isOutside ? "Ya salgo!" : "Dale, ya te atiendo!", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_llegada_sin_horario": {
@@ -171,7 +171,7 @@ export class AgentToolService {
         const arrivalStatus = String(args.arrivalStatus ?? "ya está viniendo");
         const product = String(args.product ?? "");
         const isOutside = /afuera|en la puerta|llegu[eé]|ya estoy/i.test(arrivalStatus);
-        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "VINIENDO"} AL LOCAL SIN HORARIO ACORDADO 🚨 Estado: ${arrivalStatus}`, undefined, product ? [product] : undefined, true);
+        const result = await this.takeover.request(channel, customerId, `🚨 CLIENTE ${isOutside ? "AFUERA" : "VINIENDO"} AL PUNTO DE RETIRO SIN HORARIO ACORDADO 🚨 Estado: ${arrivalStatus}`, undefined, product ? [product] : undefined, true);
         return { action: "ATENCION_HUMANA", customerMessage: isOutside ? "Ya salgo!" : "Dale, dame un segundo que verifico que haya alguien para recibirte", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_pedido_inmediato_app": {
@@ -183,9 +183,9 @@ export class AgentToolService {
         return { action:"COMPLETAR_COMPRA_WEB", customerMessage:`Primero hacé la compra desde la web:\n${productUrl}\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊`, productUrl, notificationSent:false };
       }
       case "reportar_consulta_fuera_horario": {
-        if (buenosAiresHour() >= 23) return { action:"PEDIDO_MANANA", customerMessage:"Buenas! La tienda está cerrada. Nuestro horario es de 10 a 19 hs. Si querés hacer un pedido para recibirlo mañana, podés hacerlo desde nuestra web:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
+        if (buenosAiresHour() >= 23) return { action:"PEDIDO_MANANA", customerMessage:"Buenas! El punto de retiro está cerrado. Nuestro horario es de 10 a 19 hs. Si querés hacer un pedido para recibirlo mañana, podés hacerlo desde nuestra web:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const result = await this.takeover.request(channel, customerId, "Posible pedido o pedido fuera del horario de atención", undefined, triggerMessage ? [triggerMessage] : undefined);
-        return { action:"ATENCION_HUMANA", customerMessage:"Buenas! Cómo estás? La tienda está cerrada, pero dejame que consulto a los chicos. Uno de ellos te va a responder. Muchas gracias por escribirnos!", state:result.state, pausedUntil:result.pausedUntil };
+        return { action:"ATENCION_HUMANA", customerMessage:"Buenas! Cómo estás? El punto de retiro está cerrado, pero dejame que consulto a los chicos. Uno de ellos te va a responder. Muchas gracias por escribirnos!", state:result.state, pausedUntil:result.pausedUntil };
       }
       case "consultar_mayorista": {
         const model = String(args.model ?? "");
@@ -207,7 +207,7 @@ export class AgentToolService {
         const deliveryMode = String(args.deliveryMode ?? "retiro").toLowerCase();
         const shippingCostArs = args.shippingCostArs == null ? null : Number(args.shippingCostArs);
         const customerConfirmed = args.customerConfirmed === true;
-        if (paymentMethod === "efectivo" && deliveryMode !== "retiro") return { action:"PAGO_INVALIDO", customerMessage:"En efectivo es únicamente retirando por el local. Para envíos trabajamos con transferencia." };
+        if (paymentMethod === "efectivo" && deliveryMode !== "retiro") return { action:"PAGO_INVALIDO", customerMessage:"En efectivo es únicamente retirando en el punto de retiro. Para envíos trabajamos con transferencia." };
         if (!requestedItems.length || requestedItems.some(item => !item.model || !Number.isInteger(item.quantity) || item.quantity < 10)) return { action:"MODELO_O_CANTIDAD_INVALIDA", customerMessage:"Dame un segundo que lo consulto" };
         const quotedItems = [] as Array<{ model:string; quantity:number; unitPriceUsd:number; unitPriceArs:number; subtotalArs:number; exchangeRateArs:number; stockModel:string }>;
         for (const item of requestedItems) {

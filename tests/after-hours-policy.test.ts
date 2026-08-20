@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-describe("atención después del cierre del local", () => {
+describe("atención después del cierre del punto de retiro", () => {
   const agents = readFileSync(new URL("../openclaw/workspace/AGENTS.md", import.meta.url), "utf8");
   const skill = readFileSync(new URL("../skills/ventas/SKILL.md", import.meta.url), "utf8");
 
@@ -40,7 +40,7 @@ describe("atención después del cierre del local", () => {
   });
 
   it("solo menciona el cierre cuando quieren retirar", () => {
-    expect(agents).toContain("Solo si pregunta si puede retirar, pasar o venir al local fuera del horario");
+    expect(agents).toContain("Solo si pregunta si puede retirar, pasar o venir al punto de retiro fuera del horario");
     expect(agents).toContain("no mandes la página automáticamente ante un saludo");
   });
 

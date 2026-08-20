@@ -8,7 +8,7 @@ describe("comprobantes de compras web", () => {
     ["sin_definir", "empezamos a preparar tu pedido"],
     ["envio", "empezamos a preparar tu pedido"],
     ["uber_didi", "organizar el envío con el auto"],
-    ["punto_retiro", "coordinar el día y horario de retiro en el local"]
+    ["punto_retiro", "coordinar el día y horario en el punto de retiro"]
   ])("notifica, agradece y pausa para %s", async (deliveryMode, expectedText) => {
     const repo = new ConversationRepository(":memory:");
     const notify = vi.fn();

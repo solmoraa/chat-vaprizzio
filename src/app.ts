@@ -44,8 +44,8 @@ export function createApp(d: AppDependencies) {
     const customerMessage = kind === "outside" ? "Ya salgo!" : "Dale, te esperamos";
     const status = messages.join(" | ");
     const reason = kind === "outside"
-      ? `🚨🚨🚨 CLIENTE AFUERA O EN LA PUERTA DEL LOCAL 🚨🚨🚨 Estado: ${status}`
-      : `🚨 CLIENTE LLEGANDO O CERCA DEL LOCAL 🚨 Estado: ${status}`;
+      ? `🚨🚨🚨 CLIENTE AFUERA O EN LA PUERTA DEL PUNTO DE RETIRO 🚨🚨🚨 Estado: ${status}`
+      : `🚨 CLIENTE LLEGANDO O CERCA DEL PUNTO DE RETIRO 🚨 Estado: ${status}`;
     try {
       await d.takeover.request(channel, customerId, reason, undefined, undefined, true);
     } catch (error) {
