@@ -47,4 +47,11 @@ describe("contrato del plugin OpenClaw", () => {
     expect(source).toContain("vaprizzio-required-customer-message");
     expect(source).toContain("No ejecutes ninguna herramienta nuevamente");
   });
+
+  it("inyecta en cada turno una regla contextual para no enviar enlaces de más", () => {
+    const source = readFileSync(new URL("../extensions/vaprizzio-tools/index.ts", import.meta.url), "utf8");
+    expect(source).toContain("requestsShoppingLink");
+    expect(source).toContain("el cliente no pidio comprar, ver el catalogo ni recibir un enlace");
+    expect(source).toContain("Esta prohibido incluir URLs");
+  });
 });
