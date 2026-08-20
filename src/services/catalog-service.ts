@@ -3,23 +3,40 @@ import { available } from "../catalog/provider.js";
 import type { Product, WholesaleTier } from "../domain/types.js";
 import { normalize, similarity } from "../utils/normalize.js";
 
-export interface MatchResult { matches: Product[]; ambiguous: boolean; }
+export type MatchStatus = "AVAILABLE" | "OUT_OF_STOCK" | "NOT_FOUND";
+export interface MatchResult {
+  matches: Product[];
+  unavailableMatches: Product[];
+  ambiguous: boolean;
+  status: MatchStatus;
+}
 
 export class CatalogService {
   constructor(private readonly provider: CatalogProvider) {}
   private async live() { return (await this.provider.products()).filter(available); }
+  private matchResult(candidates: Product[], ambiguous = false): MatchResult {
+    const matches = candidates.filter(available);
+    const unavailableMatches = candidates.filter(product => product.active && !available(product));
+    return {
+      matches,
+      unavailableMatches,
+      ambiguous: matches.length > 0 ? ambiguous : false,
+      status: matches.length > 0 ? "AVAILABLE" : unavailableMatches.length > 0 ? "OUT_OF_STOCK" : "NOT_FOUND"
+    };
+  }
   async byFlavor(query: string): Promise<MatchResult> {
-    const products = await this.live();
+    const products = (await this.provider.products()).filter(product => product.active);
     const exact = products.filter(p => normalize(p.flavor) === normalize(query));
-    if (exact.length) return { matches: exact, ambiguous: false };
+    if (exact.length) return this.matchResult(exact);
     const scored = products.map(p => ({ p, score: similarity(p.flavor, query) })).filter(x => x.score >= 0.72).sort((a, b) => b.score - a.score);
     const best = scored[0]?.score;
-    if (best == null) return { matches: [], ambiguous: false };
+    if (best == null) return this.matchResult([]);
     const candidates = scored.filter(x => best - x.score < 0.08).map(x => x.p);
-    return { matches: candidates, ambiguous: new Set(candidates.map(x => normalize(x.flavor))).size > 1 };
+    const liveCandidates = candidates.filter(available);
+    return this.matchResult(candidates, new Set(liveCandidates.map(x => normalize(x.flavor))).size > 1);
   }
   async byModel(query: string): Promise<MatchResult> {
-    const products = await this.live();
+    const products = (await this.provider.products()).filter(product => product.active);
     const ignored = new Set(["tenes", "tienen", "hay", "el", "la", "los", "las", "un", "una", "vape", "vapes", "vaporizador", "vaporizadores", "por", "casualidad"]);
     const queryTokens = normalize(query).split(" ").filter(token => token.length >= 2 && !ignored.has(token));
     const scored = products.map(p => {
@@ -29,9 +46,20 @@ export class CatalogService {
       return { p, score: Math.max(similarity(p.model, query), similarity(target, query), tokenCoverage) };
     }).filter(x => x.score >= 0.72).sort((a, b) => b.score - a.score);
     const best = scored[0]?.score;
-    return { matches: best == null ? [] : scored.filter(x => best - x.score < 0.08).map(x => x.p), ambiguous: false };
+    return this.matchResult(best == null ? [] : scored.filter(x => best - x.score < 0.08).map(x => x.p));
   }
-  async specific(model: string, flavor: string) { const m = await this.byModel(model); return m.matches.filter(p => similarity(p.flavor, flavor) >= 0.72); }
+  async specific(model: string, flavor: string): Promise<MatchResult> {
+    const modelMatch = await this.byModel(model);
+    const modelCandidates = [...modelMatch.matches, ...modelMatch.unavailableMatches];
+    const exact = modelCandidates.filter(product => normalize(product.flavor) === normalize(flavor));
+    if (exact.length) return this.matchResult(exact);
+    const scored = modelCandidates
+      .map(product => ({ product, score:similarity(product.flavor, flavor) }))
+      .filter(item => item.score >= 0.72)
+      .sort((a, b) => b.score - a.score);
+    const best = scored[0]?.score;
+    return this.matchResult(best == null ? [] : scored.filter(item => best - item.score < 0.08).map(item => item.product));
+  }
   async compareModels(queries: string[]) {
     const results = [] as Array<{ brand:string; model:string; description:string | null; specifications:ReturnType<typeof extractProductSpecifications>; verifiedFacts:string[]; productUrl?:string; source:"tiendanube" | "unavailable" }>;
     for (const query of queries) {

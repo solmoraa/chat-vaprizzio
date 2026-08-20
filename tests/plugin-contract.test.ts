@@ -48,10 +48,11 @@ describe("contrato del plugin OpenClaw", () => {
     expect(source).toContain("No ejecutes ninguna herramienta nuevamente");
   });
 
-  it("inyecta en cada turno una regla contextual para no enviar enlaces de más", () => {
+  it("inyecta en cada turno reglas contextuales para enlaces y productos específicos", () => {
     const source = readFileSync(new URL("../extensions/vaprizzio-tools/index.ts", import.meta.url), "utf8");
     expect(source).toContain("requestsShoppingLink");
-    expect(source).toContain("el cliente no pidio comprar, ver el catalogo ni recibir un enlace");
-    expect(source).toContain("Esta prohibido incluir URLs");
+    expect(source).toContain("requestsExplicitCatalog");
+    expect(source).toContain("PROHIBICION DE CATALOGO COMPLETO");
+    expect(source).toContain("productUrl exacto");
   });
 });
