@@ -82,6 +82,22 @@ export class CatalogService {
   }
   async stock(sku: string) { const p = (await this.provider.products()).find(x => x.sku === sku); return { available: !!p && available(p), quantity: p?.stock ?? 0 }; }
   async price(sku: string) { return (await this.provider.products()).find(x => x.sku === sku)?.price ?? null; }
+  async priceForOrder(sku: string, quantity = 1, orderQuantity = quantity) {
+    if (!Number.isInteger(quantity) || quantity < 1 || !Number.isInteger(orderQuantity) || orderQuantity < quantity) throw new Error("PRICE_QUANTITY_INVALID");
+    const product = (await this.provider.products()).find(item => item.sku === sku && available(item));
+    if (!product) return null;
+    const discountPerUnitArs = orderQuantity >= 5 && orderQuantity < 10 ? 2_000 : 0;
+    const unitPriceArs = Math.max(0, product.price - discountPerUnitArs);
+    return {
+      product:{ sku:product.sku, brand:product.brand, model:product.model, flavor:product.flavor, ...(product.productUrl ? { productUrl:product.productUrl } : {}) },
+      quantity,
+      orderQuantity,
+      regularUnitPriceArs:product.price,
+      discountPerUnitArs,
+      unitPriceArs,
+      lineTotalArs:unitPriceArs * quantity
+    };
+  }
   async wholesale(model: string, quantity?: number): Promise<{ model: string; tiers: WholesaleTier[]; selected: WholesaleTier | null } | null> {
     const all = await this.provider.wholesaleTiers();
     const names = [...new Set(all.map(t => t.model))];

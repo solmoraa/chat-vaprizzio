@@ -36,7 +36,28 @@ export class AgentToolService {
       case "comparar_modelos": return { comparisons:await this.catalog.compareModels(Array.isArray(args.models) ? args.models.map(String) : []), verifiedSource:"TIENDANUBE_PRODUCT_DESCRIPTION" };
       case "listar_catalogo": return { models: await this.catalog.priceList(), onlyAvailable: true };
       case "consultar_stock": return this.catalog.stock(String(args.sku));
-      case "consultar_precio": return { price: await this.catalog.price(String(args.sku)) };
+      case "consultar_precio": {
+        const quantity = args.quantity == null ? 1 : Number(args.quantity);
+        const orderQuantity = args.orderQuantity == null ? quantity : Number(args.orderQuantity);
+        const retailQuote = await this.catalog.priceForOrder(String(args.sku), quantity, orderQuantity);
+        if (!retailQuote) return { action:"NO_DISPONIBLE", available:false, customerMessage:"Ese producto no está disponible en este momento" };
+        if (orderQuantity >= 10) {
+          const model = `${retailQuote.product.brand} ${retailQuote.product.model}`;
+          const wholesaleQuote = await this.catalog.wholesale(model, orderQuantity);
+          if (!wholesaleQuote) {
+            const result = await this.takeover.request(channel, customerId, "Producto mayorista no encontrado", orderQuantity, [model]);
+            return { action:"CONSULTAR", replyAllowed:true, customerMessage:"Dame un segundo que lo consulto", reason:"PRODUCTO_MAYORISTA_NO_ENCONTRADO", state:result.state, pausedUntil:result.pausedUntil };
+          }
+          return { action:"MAYORISTA", currency:"USD", exchangeRate:"DOLAR_CRIPTO", finalPrice:true, quantity, orderQuantity, product:retailQuote.product, ...wholesaleQuote };
+        }
+        return {
+          action:orderQuantity >= 5 ? "PROMOCION_5_A_9" : "MINORISTA",
+          currency:"ARS",
+          finalPrice:true,
+          promotion:orderQuantity >= 5 ? "DESCUENTO_2000_POR_UNIDAD" : null,
+          ...retailQuote
+        };
+      }
       case "consultar_negocio": return { value: await this.catalog.business(String(args.key)) };
       case "consultar_entrega": {
         const method = String(args.method ?? "").toLowerCase();
