@@ -16,4 +16,35 @@ describe("catálogo anti-alucinación", () => {
     expect(result.length).toBeGreaterThan(0);
     expect(result.every(item => item.tiers.length > 0)).toBe(true);
   });
+  it("extrae Ice King de una consulta natural de precio", async () => {
+  const r = await new CatalogService(fixture()).byModel(
+    "si compro 5 del ice king a cuanto me queda"
+  );
+
+  expect(r.status).toBe("AVAILABLE");
+
+  expect(r.matches.map(x => x.sku)).toEqual(
+    expect.arrayContaining(["M1", "T1"])
+  );
+});
+
+it("permite cotizar Ice King por modelo sin elegir sabor", async () => {
+  const r = await new CatalogService(fixture()).priceForOrder(
+    "Ice King",
+    5,
+    5
+  );
+
+  expect(r).toMatchObject({
+    quoteScope: "MODEL",
+
+    product: {
+      brand: "Elfbar",
+      model: "Ice King 40K"
+    },
+
+    unitPriceArs: 24_000,
+    lineTotalArs: 120_000
+  });
+});
 });

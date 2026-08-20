@@ -30,6 +30,33 @@ describe("precios por cantidad", () => {
     expect(ignite).toMatchObject({ action:"MAYORISTA_5_A_9", unitPriceArs:23_000, lineTotalArs:46_000, purchaseFlow:"FUERA_DE_LA_WEB", webCheckoutAllowed:false, requiresExplicitConfirmation:true });
   });
 
+  it("cotiza 5 Ice King por modelo con precio unitario y total", async () => {
+  const { tools } = setup();
+
+  const result = await tools.execute(
+    "consultar_precio",
+    {
+      channel: "instagram",
+      customerId: "ice-king-modelo",
+      sku: "Ice King",
+      quantity: 5,
+      orderQuantity: 5
+    }
+  );
+
+  expect(result).toMatchObject({
+    action: "MAYORISTA_5_A_9",
+
+    product: {
+      brand: "Elfbar",
+      model: "Ice King 40K"
+    },
+
+    unitPriceArs: 24_000,
+    lineTotalArs: 120_000
+  });
+});
+
   it.each(["whatsapp", "instagram", "messenger"] as const)("notifica una venta confirmada de 5 a 9 y pausa %s", async channel => {
     const { tools, notify } = setup();
     const result = await tools.execute("consultar_precio", {

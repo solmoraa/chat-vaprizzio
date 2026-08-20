@@ -3,6 +3,41 @@ import { available } from "../catalog/provider.js";
 import type { Product, WholesaleTier } from "../domain/types.js";
 import { normalize, similarity } from "../utils/normalize.js";
 
+const MODEL_QUERY_IGNORED = new Set([
+  "tenes", "tienen", "hay", "el", "la", "los", "las",
+  "un", "una", "vape", "vapes", "vaporizador", "vaporizadores",
+  "por", "casualidad", "si", "compro", "comprar", "compraria",
+  "llevo", "llevar", "llevando", "quiero", "quisiera",
+  "de", "del", "al", "cuanto", "cuantos", "me",
+  "queda", "quedan", "quedaria", "sale", "salen",
+  "precio", "precios", "cada", "unidad", "unidades",
+  "mas", "favor",
+  "cinco", "seis", "siete", "ocho", "nueve",
+  "diez", "veinte", "cincuenta", "cien", "doscientos"
+]);
+
+const modelQueryTokens = (query: string) => {
+  const tokens = normalize(query)
+    .split(" ")
+    .filter(
+      token =>
+        token.length >= 2 &&
+        !MODEL_QUERY_IGNORED.has(token) &&
+        !/^\d+$/.test(token)
+    );
+
+  // Para Vaprizzio, "Ice King" significa Elfbar Ice King.
+  if (
+    tokens.includes("ice") &&
+    tokens.includes("king") &&
+    !tokens.includes("elfbar")
+  ) {
+    tokens.unshift("elfbar");
+  }
+
+  return tokens;
+};
+
 export type MatchStatus = "AVAILABLE" | "OUT_OF_STOCK" | "NOT_FOUND";
 export interface MatchResult {
   matches: Product[];
@@ -37,8 +72,7 @@ export class CatalogService {
   }
   async byModel(query: string): Promise<MatchResult> {
     const products = (await this.provider.products()).filter(product => product.active);
-    const ignored = new Set(["tenes", "tienen", "hay", "el", "la", "los", "las", "un", "una", "vape", "vapes", "vaporizador", "vaporizadores", "por", "casualidad"]);
-    const queryTokens = normalize(query).split(" ").filter(token => token.length >= 2 && !ignored.has(token));
+    const queryTokens = modelQueryTokens(query);
     const scored = products.map(p => {
       const target = `${p.brand} ${p.model}`;
       const targetTokens = new Set(normalize(target).split(" "));
@@ -110,26 +144,90 @@ export class CatalogService {
   }
   async stock(sku: string) { const p = (await this.provider.products()).find(x => x.sku === sku); return { available: !!p && available(p), quantity: p?.stock ?? 0 }; }
   async price(sku: string) { return (await this.provider.products()).find(x => x.sku === sku)?.price ?? null; }
-  async priceForOrder(sku: string, quantity = 1, orderQuantity = quantity) {
-    if (!Number.isInteger(quantity) || quantity < 1 || !Number.isInteger(orderQuantity) || orderQuantity < quantity) throw new Error("PRICE_QUANTITY_INVALID");
-    const product = (await this.provider.products()).find(item => item.sku === sku && available(item));
-    if (!product) return null;
-    const discountPerUnitArs = orderQuantity >= 5 && orderQuantity < 10 ? 2_000 : 0;
-    const unitPriceArs = Math.max(0, product.price - discountPerUnitArs);
-    return {
-      product:{ sku:product.sku, brand:product.brand, model:product.model, flavor:product.flavor, ...(product.productUrl ? { productUrl:product.productUrl } : {}) },
-      quantity,
-      orderQuantity,
-      regularUnitPriceArs:product.price,
-      discountPerUnitArs,
-      unitPriceArs,
-      lineTotalArs:unitPriceArs * quantity
-    };
+  async priceForOrder(
+  skuOrModel: string,
+  quantity = 1,
+  orderQuantity = quantity
+) {
+  if (
+    !Number.isInteger(quantity) ||
+    quantity < 1 ||
+    !Number.isInteger(orderQuantity) ||
+    orderQuantity < quantity
+  ) {
+    throw new Error("PRICE_QUANTITY_INVALID");
   }
+
+  const products = await this.provider.products();
+
+  // Primero intenta encontrar un SKU exacto.
+  let product = products.find(
+    item => item.sku === skuOrModel && available(item)
+  );
+
+  let quoteScope: "SKU" | "MODEL" = "SKU";
+
+  // Si no era un SKU, intenta resolverlo como modelo.
+  if (!product) {
+    const modelMatch = await this.byModel(skuOrModel);
+
+    const modelKeys = new Set(
+      modelMatch.matches.map(
+        item => `${normalize(item.brand)}|${normalize(item.model)}`
+      )
+    );
+
+    const prices = new Set(
+      modelMatch.matches.map(item => item.price)
+    );
+
+    // Podemos cotizar por modelo solamente si todas las variantes
+    // disponibles corresponden al mismo modelo y tienen el mismo precio.
+    if (modelKeys.size === 1 && prices.size === 1) {
+      product = modelMatch.matches[0];
+      quoteScope = "MODEL";
+    }
+  }
+
+  if (!product) return null;
+
+  const discountPerUnitArs =
+    orderQuantity >= 5 && orderQuantity < 10
+      ? 2_000
+      : 0;
+
+  const unitPriceArs = Math.max(
+    0,
+    product.price - discountPerUnitArs
+  );
+
+  return {
+    quoteScope,
+
+    product: {
+      sku: product.sku,
+      brand: product.brand,
+      model: product.model,
+      flavor: product.flavor,
+      ...(product.productUrl
+        ? { productUrl: product.productUrl }
+        : {})
+    },
+
+    quantity,
+    orderQuantity,
+
+    regularUnitPriceArs: product.price,
+    discountPerUnitArs,
+    unitPriceArs,
+
+    lineTotalArs: unitPriceArs * quantity
+  };
+}
   async wholesale(model: string, quantity?: number): Promise<{ model: string; tiers: WholesaleTier[]; selected: WholesaleTier | null } | null> {
     const all = await this.provider.wholesaleTiers();
     const names = [...new Set(all.map(t => t.model))];
-    const queryTokens = normalize(model).split(" ").filter(token => token.length >= 2);
+    const queryTokens = modelQueryTokens(model);
     const scored = names.map(name => {
       const nameTokens = new Set(normalize(name).split(" "));
       const tokenCoverage = queryTokens.length > 0 && queryTokens.every(token => nameTokens.has(token)) ? 0.92 : 0;

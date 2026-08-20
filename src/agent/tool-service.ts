@@ -43,8 +43,33 @@ export class AgentToolService {
         const confirmedProducts = Array.isArray(args.confirmedProducts)
           ? args.confirmedProducts.map(String).map(item => item.trim()).filter(Boolean)
           : [];
-        const retailQuote = await this.catalog.priceForOrder(String(args.sku), quantity, orderQuantity);
-        if (!retailQuote) return { action:"NO_DISPONIBLE", available:false, customerMessage:"Ese producto no está disponible en este momento" };
+        const priceTarget = String(args.sku ?? "");
+
+const retailQuote = await this.catalog.priceForOrder(
+  priceTarget,
+  quantity,
+  orderQuantity
+);
+
+if (!retailQuote) {
+  const modelMatch = await this.catalog.byModel(priceTarget);
+
+  if (modelMatch.status === "AVAILABLE") {
+    return {
+      action: "ELEGIR_VARIANTE",
+      available: true,
+      customerMessage:
+        "Ese modelo tiene precios distintos según el sabor. Decime cuál querés y te paso el precio exacto."
+    };
+  }
+
+  return {
+    action: "NO_DISPONIBLE",
+    available: false,
+    customerMessage:
+      "Ese producto no está disponible en este momento"
+  };
+}
         if (orderQuantity >= 10) {
           const model = `${retailQuote.product.brand} ${retailQuote.product.model}`;
           const wholesaleQuote = await this.catalog.wholesale(model, orderQuantity);
@@ -52,8 +77,31 @@ export class AgentToolService {
             const result = await this.takeover.request(channel, customerId, "Producto mayorista no encontrado", orderQuantity, [model]);
             return { action:"CONSULTAR", replyAllowed:true, customerMessage:"Dame un segundo que lo consulto", reason:"PRODUCTO_MAYORISTA_NO_ENCONTRADO", state:result.state, pausedUntil:result.pausedUntil };
           }
-          return { action:"MAYORISTA", currency:"USD", exchangeRate:"DOLAR_CRIPTO", finalPrice:true, quantity, orderQuantity, product:retailQuote.product, ...wholesaleQuote };
-        }
+          const lineTotalUsd = wholesaleQuote.selected
+  ? Math.round(
+      wholesaleQuote.selected.unitPriceUsd *
+      quantity *
+      100
+    ) / 100
+  : null;
+
+return {
+  action: "MAYORISTA",
+  currency: "USD",
+  exchangeRate: "DOLAR_CRIPTO",
+  finalPrice: true,
+
+  quantity,
+  orderQuantity,
+  product: retailQuote.product,
+
+  ...(lineTotalUsd != null
+    ? { lineTotalUsd }
+    : {}),
+
+  ...wholesaleQuote
+};
+}
         if (orderQuantity >= 5) {
           const productLabel = `${quantity} ${retailQuote.product.brand} ${retailQuote.product.model} ${retailQuote.product.flavor}`.trim();
           if (customerConfirmed) {
@@ -109,10 +157,29 @@ export class AgentToolService {
         throw new Error("DELIVERY_METHOD_INVALID");
       }
       case "solicitar_envio_app": {
-        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo desde la web y mañana lo despachamos:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
-        const result = await this.takeover.request(channel, customerId, "Cotizar Didi o Uber Envíos", undefined, [String(args.address ?? "")]);
-        return { action: "CONSULTAR", customerMessage: "Dame un segundo que consulto el valor del envío", state: result.state };
-      }
+  const address = String(args.address ?? "").trim();
+
+  const details = address
+    ? [`Dirección informada: ${address}`]
+    : undefined;
+
+  const result = await this.takeover.request(
+    channel,
+    customerId,
+    "Cliente eligió Uber/Didi como medio de entrega: continuar conversación y coordinar envío",
+    undefined,
+    details
+  );
+
+  return {
+    action: "INTERVENCION_HUMANA_UBER_DIDI",
+    customerMessage:
+      "Dale, dame un segundo que coordinamos el envío por Uber/Didi 😊",
+    notificationSent: true,
+    state: result.state,
+    pausedUntil: result.pausedUntil
+  };
+}
       case "reportar_demora_envio": {
         const carrier = String(args.carrier ?? "").toLowerCase();
         if (carrier === "correo_argentino") return { action: "REVISAR_SEGUIMIENTO", customerMessage: "Revisá el código de seguimiento que te llegó por mail para ver el estado del envío" };
@@ -237,13 +304,31 @@ export class AgentToolService {
         return { action: "ATENCION_HUMANA", customerMessage: isOutside ? "Ya salgo!" : "Dale, dame un segundo que verifico que haya alguien para recibirte", state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_pedido_inmediato_app": {
-        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"A esta hora los envíos salen mañana. Podés hacer el pedido tranquilo desde la web y mañana lo despachamos:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
-        const product = String(args.product ?? "").trim();
-        if (!product) return { action:"PEDIR_PRODUCTO", requires:["product"], customerMessage:"Decime qué vape buscabas así te paso el enlace para comprarlo" };
-        const candidateUrl = String(args.productUrl ?? "").trim();
-        const productUrl = /^https:\/\/www\.vaprizzio\.com\/productos\//i.test(candidateUrl) ? candidateUrl : "https://www.vaprizzio.com/productos/";
-        return { action:"COMPLETAR_COMPRA_WEB", customerMessage:`Primero hacé la compra desde la web:\n${productUrl}\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊`, productUrl, notificationSent:false };
-      }
+  const product = String(args.product ?? "").trim();
+  const address = String(args.address ?? "").trim();
+
+  const details = [
+    product ? `Producto: ${product}` : "",
+    address ? `Dirección: ${address}` : ""
+  ].filter(Boolean);
+
+  const result = await this.takeover.request(
+    channel,
+    customerId,
+    "Cliente eligió Uber/Didi como medio de entrega: continuar venta y coordinar envío",
+    undefined,
+    details.length ? details : undefined
+  );
+
+  return {
+    action: "INTERVENCION_HUMANA_UBER_DIDI",
+    customerMessage:
+      "Dale, dame un segundo que coordinamos el envío por Uber/Didi 😊",
+    notificationSent: true,
+    state: result.state,
+    pausedUntil: result.pausedUntil
+  };
+}
       case "reportar_consulta_fuera_horario": {
         if (buenosAiresHour() >= 23) return { action:"PEDIDO_MANANA", customerMessage:"Buenas! El punto de retiro está cerrado. Nuestro horario es de 10 a 19 hs. Si querés hacer un pedido para recibirlo mañana, podés hacerlo desde nuestra web:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const result = await this.takeover.request(channel, customerId, "Posible pedido o pedido fuera del horario de atención", undefined, triggerMessage ? [triggerMessage] : undefined);
@@ -258,7 +343,27 @@ export class AgentToolService {
           return { action: "CONSULTAR", replyAllowed: true, customerMessage: "Dame un segundo que lo consulto", reason: "PRODUCTO_NO_ENCONTRADO" };
         }
         if (quantity != null && quantity < 10) return { action: "MINORISTA", minimum: 10 };
-        return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, ...quote };
+        const totalUsd =
+  quantity != null && quote.selected
+    ? Math.round(
+        quote.selected.unitPriceUsd *
+        quantity *
+        100
+      ) / 100
+    : null;
+
+return {
+  action: "AUTOMATICO",
+  currency: "USD",
+  exchangeRate: "DOLAR_CRIPTO",
+  finalPrice: true,
+
+  ...(totalUsd != null
+    ? { totalUsd }
+    : {}),
+
+  ...quote
+};
       }
       case "listar_mayorista": return { action: "AUTOMATICO", currency: "USD", exchangeRate: "DOLAR_CRIPTO", finalPrice: true, models: await this.catalog.wholesaleList() };
       case "preparar_venta_mayorista": {
