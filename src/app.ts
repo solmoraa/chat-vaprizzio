@@ -11,6 +11,7 @@ import { verifyMetaSignature } from "./channels/instagram/signature.js";
 import type { InstagramClient } from "./channels/instagram/client.js";
 import type { Channel } from "./domain/types.js";
 import { arrivalUpdateKind, opensFreshTopic, type ArrivalUpdateKind } from "./services/fresh-topic.js";
+import { casualStoryReply, isCasualStoryReaction } from "./services/story-reply.js";
 
 export interface AppDependencies { config: AppConfig; tools: AgentToolService; conversations: ConversationRepository; debounce: MessageDebouncer; openclaw: OpenClawClient; takeover: TakeoverService; instagram?: Pick<InstagramClient, "send" | "isAutomatedEcho" | "diagnostics">; }
 
@@ -91,12 +92,18 @@ export function createApp(d: AppDependencies) {
 
   const receiveMetaWebhook: express.RequestHandler = (req, res) => {
     const raw = req.body as Buffer;
-    type MetaMessage = { text?: string; is_echo?: boolean; app_id?: string | number; attachments?: Array<{ type?: string; payload?: { url?: string } }> };
+    type MetaReferral = { source?: string; type?: string; ad_id?: string };
+    type MetaMessage = {
+      text?: string; is_echo?: boolean; app_id?: string | number;
+      attachments?: Array<{ type?: string; payload?: { url?: string } }>;
+      reply_to?: { story?: { id?: string; url?: string } };
+      referral?: MetaReferral;
+    };
     type MetaEvent = {
       sender?: { id?: string }; recipient?: { id?: string };
       from?: { id?: string }; to?: { id?: string };
       sender_id?: string; recipient_id?: string;
-      message?: MetaMessage; text?: string;
+      message?: MetaMessage; text?: string; referral?: MetaReferral;
     };
     type MetaChangeValue = MetaEvent & { messaging?: MetaEvent[]; messages?: MetaEvent[] };
     const body = JSON.parse(raw.toString("utf8")) as { object?: string; entry?: Array<{ messaging?: MetaEvent[]; changes?: Array<{ field?:string; value?:MetaChangeValue }> }> };
@@ -153,6 +160,26 @@ export function createApp(d: AppDependencies) {
       }
       if (opensFreshTopic(text)) d.takeover.resume(channel, customerId);
       if (!d.takeover.canAiReply(channel, customerId)) { req.log.info({ channel }, "meta_message_paused"); continue; }
+      const isStoryContext = Boolean(
+        event.message?.reply_to?.story
+        || event.referral?.source?.toUpperCase() === "ADS"
+        || event.message?.referral?.source?.toUpperCase() === "ADS"
+      );
+      if (isStoryContext && isCasualStoryReaction(text)) {
+        req.log.info({ channel }, "meta_story_reaction_queued");
+        d.debounce.push(`${channel}:${customerId}`, text, async messages => {
+          if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
+          const combined = messages.join("\n");
+          if (!isCasualStoryReaction(combined)) {
+            const reply = await d.openclaw.reply(channel, customerId, messages);
+            await d.instagram.send(channel, customerId, reply);
+            return;
+          }
+          await d.instagram.send(channel, customerId, casualStoryReply(combined));
+          logger.info({ channel, customerId, messageCount:messages.length }, "meta_story_reaction_sent");
+        });
+        continue;
+      }
       req.log.info({ channel }, "meta_message_queued");
       d.debounce.push(`${channel}:${customerId}`, text, async messages => {
         if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
