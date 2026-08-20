@@ -244,6 +244,13 @@ systemctl --user daemon-reload
 systemctl --user enable --now chat-vaprizzio-monitor.timer
 ```
 
+El monitor diferencia una caída real del backend/gateway de una demora de
+Google Sheets. Los componentes críticos alertan después de tres controles
+fallidos; `/ready` dispone de más tiempo que la conexión a Sheets y solo emite
+una alerta de catálogo después de diez controles fallidos continuos. Una
+recuperación reinicia únicamente el contador correspondiente. Esto evita que
+una demora aislada de Google se anuncie como una caída completa del servicio.
+
 Verificar al final con `systemctl is-enabled openclaw-gateway.service`, `systemctl is-active openclaw-gateway.service`, `openclaw channels status --probe`, `systemctl list-timers openclaw-telegram-watchdog.timer` y `systemctl --user list-timers chat-vaprizzio-monitor.timer`. El watchdog exige dos controles fallidos consecutivos antes de reiniciar el gateway, para evitar reinicios por una demora aislada. Esto fortalece la disponibilidad de Telegram sin modificar el workspace ni los conocimientos de `vaprizziobot`.
 
 ## Corrección del medio de venta en vaprizziobot

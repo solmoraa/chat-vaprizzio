@@ -26,7 +26,15 @@ export function createApp(d: AppDependencies) {
     responseDelayMs: d.config.DEBOUNCE_MS,
     catalogCacheMs: d.config.CATALOG_CACHE_MS,
   }));
-  app.get("/ready", async (_req, res) => { try { await d.tools.catalog.priceList(); res.json({ ok:true, catalog:true }); } catch { res.status(503).json({ ok:false, catalog:false }); } });
+  app.get("/ready", async (req, res) => {
+    try {
+      await d.tools.catalog.priceList();
+      res.json({ ok:true, catalog:true });
+    } catch (error) {
+      req.log.warn({ err:error }, "catalog_readiness_failed");
+      res.status(503).json({ ok:false, catalog:false });
+    }
+  });
   app.get("/diagnostics/meta", async (req, res) => {
     if (!d.config.TOOL_API_TOKEN) return res.status(503).json({ ok:false, error:"DIAGNOSTICS_TOKEN_NOT_CONFIGURED" });
     if (req.header("authorization") !== `Bearer ${d.config.TOOL_API_TOKEN}`) return res.sendStatus(401);
