@@ -37,6 +37,25 @@ export interface NegotiatedPrice {
   timestamp: string;
 }
 
+export type DeliveryMode =
+  | "sin_definir"
+  | "envio"
+  | "uber_didi"
+  | "punto_retiro";
+
+export interface ConversationMemory {
+  deliveryMode: DeliveryMode;
+
+  pickupCoordinationStarted: boolean;
+  pickupConfirmed: boolean;
+  pickupProposedTime: string | null;
+  pickupConfirmedTime: string | null;
+
+  humanMessages: string[];
+
+  receiptReceived: boolean;
+}
+
 export interface Conversation {
   id: string;
   channel: Channel;
@@ -49,6 +68,7 @@ export interface Conversation {
   negotiatedPrice: NegotiatedPrice | null;
   customerCity: string | null;
   lastMessages: string[];
+  memory?: ConversationMemory;
   lastActivity: string;
   pausedUntil: string | null;
 }

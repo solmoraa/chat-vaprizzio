@@ -246,33 +246,167 @@ return {
         const visitType = String(args.visitType ?? "retiro").toLowerCase();
         const product = String(args.product ?? "");
         const preferredTime = String(args.preferredTime ?? "");
+        if (visitType !== "cambio") {
+          this.conversations?.recordPickupCoordination(
+          channel,
+          customerId,
+          preferredTime
+          );
+        }
         const label = visitType === "cambio" ? "cambio de producto en el punto de retiro" : "retiro en el punto de retiro";
         const details = [product, preferredTime ? `Horario propuesto: ${preferredTime}` : ""].filter(Boolean);
         const result = await this.takeover.request(channel, customerId, `Coordinar horario para ${label}`, undefined, details.length ? details : undefined);
         return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", pickupType:"PUNTO_DE_RETIRO_GRATUITO", scheduleConfirmed:false, state: result.state, pausedUntil: result.pausedUntil };
       }
       case "reportar_comprobante_web": {
-        const deliveryMode = String(args.deliveryMode ?? "sin_definir").toLowerCase();
-        const paymentTiming = String(args.paymentTiming ?? "antes_envio").toLowerCase();
-        const orderReference = String(args.orderReference ?? "");
-        const base = paymentTiming === "vehiculo_enviado"
-          ? "Gracias por mandarnos el comprobante! 💜🙌 Recibimos el pago acordado después de enviar el vehículo. Apenas lo verifiquemos te confirmamos."
-          : paymentTiming === "al_recibir"
-            ? "Gracias por mandarnos el comprobante! 💜🙌 Recibimos el pago acordado al llegar el pedido. Apenas lo verifiquemos te confirmamos."
-            : "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, confirmamos el envío y empezamos a preparar tu pedido.";
-        const customerMessage = deliveryMode === "sin_definir"
-          ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Para cualquier cosa estamos en contacto 😊"
-          : deliveryMode === "uber_didi"
-          ? paymentTiming === "antes_envio"
-            ? "Gracias por tu compra! 💜🙌 Ahora nos vamos a comunicar para organizar el envío con el auto. Para cualquier cosa estamos en contacto 😊"
-            : `${base} Para cualquier cosa estamos en contacto 😊`
-          : deliveryMode === "punto_retiro"
-            ? "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el día y horario en el punto de retiro. Para cualquier cosa estamos en contacto 😊"
-            : `${base} Para cualquier cosa estamos en contacto 😊`;
-        const modeLabel = deliveryMode === "sin_definir" ? "entrega sin definir" : deliveryMode === "uber_didi" ? "Uber/Didi" : deliveryMode === "punto_retiro" ? "punto de retiro" : "envío";
-        const result = await this.takeover.request(channel, customerId, `Comprobante recibido de compra web - modalidad: ${modeLabel}`, undefined, orderReference ? [orderReference] : undefined);
-        return { action: "VERIFICAR_PAGO", customerMessage, state: result.state, pausedUntil: result.pausedUntil };
-      }
+  const requestedDeliveryMode =
+    String(
+      args.deliveryMode ?? "sin_definir"
+    ).toLowerCase();
+
+  const paymentTiming =
+    String(
+      args.paymentTiming ?? "antes_envio"
+    ).toLowerCase();
+
+  const orderReference =
+    String(args.orderReference ?? "");
+
+  const conversation =
+    this.conversations?.getOrCreate(
+      channel,
+      customerId
+    );
+
+  const memory = conversation?.memory;
+
+  /*
+   * Si el modelo manda sin_definir pero la memoria
+   * ya sabe cómo se entrega, usamos la memoria.
+   */
+  const rememberedMode =
+    memory?.deliveryMode ?? "sin_definir";
+
+  const deliveryMode =
+    requestedDeliveryMode === "sin_definir" &&
+    rememberedMode !== "sin_definir"
+      ? rememberedMode
+      : requestedDeliveryMode;
+
+  this.conversations?.markReceiptReceived(
+    channel,
+    customerId,
+    deliveryMode === "punto_retiro" ||
+    deliveryMode === "uber_didi" ||
+    deliveryMode === "envio"
+      ? deliveryMode
+      : "sin_definir"
+  );
+
+  /*
+   * Volvemos a leerla porque markReceiptReceived()
+   * acaba de persistir cambios.
+   */
+  const updatedConversation =
+    this.conversations?.getOrCreate(
+      channel,
+      customerId
+    );
+
+  const updatedMemory =
+    updatedConversation?.memory;
+
+  const base =
+    paymentTiming === "vehiculo_enviado"
+      ? "Gracias por mandarnos el comprobante! 💜🙌 Recibimos el pago acordado después de enviar el vehículo. Apenas lo verifiquemos te confirmamos."
+      : paymentTiming === "al_recibir"
+        ? "Gracias por mandarnos el comprobante! 💜🙌 Recibimos el pago acordado al llegar el pedido. Apenas lo verifiquemos te confirmamos."
+        : "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, confirmamos el envío y empezamos a preparar tu pedido.";
+
+  let customerMessage: string;
+
+  if (deliveryMode === "sin_definir") {
+    customerMessage =
+      "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Para cualquier cosa estamos en contacto 😊";
+  } else if (deliveryMode === "uber_didi") {
+    customerMessage =
+      paymentTiming === "antes_envio"
+        ? "Gracias por tu compra! 💜🙌 Ahora nos vamos a comunicar para organizar el envío con el auto. Para cualquier cosa estamos en contacto 😊"
+        : `${base} Para cualquier cosa estamos en contacto 😊`;
+  } else if (deliveryMode === "punto_retiro") {
+    /*
+     * Caso ideal:
+     * tenemos horario explícitamente confirmado
+     * por una intervención humana registrada.
+     */
+    if (
+      updatedMemory?.pickupConfirmed &&
+      updatedMemory.pickupConfirmedTime
+    ) {
+      customerMessage =
+        `Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. ` +
+        `Ya tenemos coordinado el retiro para las ${updatedMemory.pickupConfirmedTime} hs. ` +
+        `Para cualquier cosa estamos en contacto 😊`;
+    }
+
+    /*
+     * Ya hubo coordinación/intervención por retiro,
+     * aunque no podemos asegurar un horario exacto.
+     *
+     * NO volvemos a decir que "nos vamos a comunicar
+     * para coordinar".
+     */
+    else if (
+      updatedMemory?.pickupCoordinationStarted
+    ) {
+      customerMessage =
+        "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Como ya veníamos coordinando el retiro, seguimos con lo acordado. Para cualquier cosa estamos en contacto 😊";
+    }
+
+    /*
+     * Solo usamos la frase vieja si realmente nunca
+     * hubo una coordinación previa.
+     */
+    else {
+      customerMessage =
+        "Gracias por mandarnos el comprobante! 💜🙌 Apenas confirmemos el pago, empezamos a preparar tu pedido. Nos vamos a comunicar para coordinar el día y horario en el punto de retiro. Para cualquier cosa estamos en contacto 😊";
+    }
+  } else {
+    customerMessage =
+      `${base} Para cualquier cosa estamos en contacto 😊`;
+  }
+
+  const modeLabel =
+    deliveryMode === "sin_definir"
+      ? "entrega sin definir"
+      : deliveryMode === "uber_didi"
+        ? "Uber/Didi"
+        : deliveryMode === "punto_retiro"
+          ? "punto de retiro"
+          : "envío";
+
+  const result =
+    await this.takeover.request(
+      channel,
+      customerId,
+      `Comprobante recibido de compra web - modalidad: ${modeLabel}`,
+      undefined,
+      orderReference
+        ? [orderReference]
+        : undefined
+    );
+
+  return {
+    action: "VERIFICAR_PAGO",
+    customerMessage,
+    deliveryMode,
+    rememberedPickupCoordination:
+      updatedMemory?.pickupCoordinationStarted ??
+      false,
+    state: result.state,
+    pausedUntil: result.pausedUntil
+  };
+}
       case "reportar_consulta_post_comprobante": {
         return { action:"ESPERAR_HUMANO", customerMessage:"NO_REPLY", notificationSent:false, state:"WAITING_HUMAN" };
       }

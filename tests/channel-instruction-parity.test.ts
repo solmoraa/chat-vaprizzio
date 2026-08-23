@@ -10,7 +10,7 @@ describe("conocimiento compartido entre canales", () => {
     expect(instructions.toLowerCase()).toContain("whatsapp");
     expect(instructions.toLowerCase()).toContain("messenger");
     expect(instructions.toLowerCase()).toContain("instagram");
-    expect(instructions).toContain("6 segundos");
+    expect(instructions).toContain("espera configurada");
     expect(instructions).toMatch(/reinicio (por|de) 12 horas/i);
   });
 

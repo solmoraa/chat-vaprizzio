@@ -12,7 +12,7 @@ Agente de atención y ventas para Vaprizzio. WhatsApp (mediante OpenClaw) e Inst
 - Filtro obligatorio `Activo=SI` y `Stock>0`.
 - Herramientas deterministas para precio, stock, negocio, mayorista, carrito, resumen y takeover.
 - Memoria SQLite aislada por `channel + customer_id`.
-- Debounce real de 6 segundos desde el último mensaje, igual en WhatsApp, Messenger e Instagram.
+- Debounce configurable desde el último mensaje, igual en WhatsApp, Messenger e Instagram. El valor predeterminado es 6 segundos y puede sobrescribirse con `DEBOUNCE_MS`.
 - Estados `AI_ACTIVE`, `WAITING_HUMAN`, `HUMAN_ACTIVE`; en los dos últimos la capa bloquea herramientas de IA.
 - Precio negociado persistente y reanudación explícita.
 - Instagram con verificación de webhook y firma HMAC.
