@@ -2,6 +2,38 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
+const GREETING_RE =
+  /^\s*(hola|buenas|buen\s+d[ií]a|buenos\s+d[ií]as|buenas\s+tardes|buenas\s+noches)\b/i;
+
+function formatGroupedMessages(messages: string[]) {
+  const cleanMessages = messages
+    .map(message => message.trim())
+    .filter(Boolean);
+
+  const firstMessage = cleanMessages[0] ?? "";
+  const startsWithGreeting = GREETING_RE.test(firstMessage);
+
+  const formattedMessages = cleanMessages
+    .map(
+      (message, index) =>
+        `[Mensaje del cliente ${index + 1}/${cleanMessages.length}]\n${message}`
+    )
+    .join("\n\n");
+
+  return [
+    "[INTERVENCION_AGRUPADA]",
+    "Todos los mensajes siguientes fueron recibidos dentro de la misma ventana de espera y forman UNA SOLA intervención del cliente.",
+    "Leé todos los mensajes antes de decidir qué responder o qué herramienta ejecutar.",
+    `Cantidad de mensajes: ${cleanMessages.length}`,
+    `El primer mensaje comienza con un saludo: ${startsWithGreeting ? "SI" : "NO"}`,
+    startsWithGreeting
+      ? "Si además hay una consulta concreta, saludá una sola vez antes de responderla. No omitas el saludo."
+      : "No inventes un saludo previo que el cliente no haya enviado.",
+    "",
+    formattedMessages,
+    "[FIN_INTERVENCION_AGRUPADA]"
+  ].join("\n");
+}
 const WHATSAPP_PARITY_CONTEXT = "[Política de canal: aplicá exactamente los mismos conocimientos, respuestas, tono, herramientas, validaciones, pausas humanas, alertas y reglas comerciales vigentes de WhatsApp. El canal solo cambia el transporte.]";
 type AgentRunner = (file: string, args: string[]) => Promise<{ stdout: string }>;
 export class OpenClawClient {
@@ -21,10 +53,27 @@ export class OpenClawClient {
     });
   }
   async dispatch(channel: string, customerId: string, messages: string[]) {
-    if (!this.token) throw new Error("OPENCLAW_NOT_CONFIGURED");
-    const res = await fetch(`${this.baseUrl}/hooks/agent`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${this.token}` }, body: JSON.stringify({ agentId: this.agentId, sessionKey: `${channel}:${customerId}`, message: messages.join("\n"), deliver: true }), signal:AbortSignal.timeout(this.requestTimeoutMs) });
-    if (!res.ok) throw new Error(`OPENCLAW_ERROR:${res.status}`);
-  }
+  if (!this.token) throw new Error("OPENCLAW_NOT_CONFIGURED");
+
+  const groupedMessages = formatGroupedMessages(messages);
+
+  const res = await fetch(`${this.baseUrl}/hooks/agent`, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${this.token}`
+    },
+    body: JSON.stringify({
+      agentId: this.agentId,
+      sessionKey: `${channel}:${customerId}`,
+      message: groupedMessages,
+      deliver: true
+    }),
+    signal: AbortSignal.timeout(this.requestTimeoutMs)
+  });
+
+  if (!res.ok) throw new Error(`OPENCLAW_ERROR:${res.status}`);
+}
 
   async sendDirect(channel: "whatsapp", customerId: string, message: string, account?: string) {
     const target = /^\d{8,15}$/.test(customerId)
@@ -38,7 +87,13 @@ export class OpenClawClient {
   }
 
   async reply(channel: string, customerId: string, messages: string[]) {
-    const prompt = `[Canal: ${channel}]\n[CustomerId: ${customerId}]\n${WHATSAPP_PARITY_CONTEXT}\n${messages.join("\n")}`;
+   const groupedMessages = formatGroupedMessages(messages);
+
+const prompt =
+  `[Canal: ${channel}]\n` +
+  `[CustomerId: ${customerId}]\n` +
+  `${WHATSAPP_PARITY_CONTEXT}\n` +
+  groupedMessages;
     const { stdout } = await this.runner(this.cliPath, [
       "agent", "--agent", this.agentId,
       "--session-key", `${channel}:${customerId}`,

@@ -34,7 +34,12 @@ describe("respuesta de OpenClaw para Instagram", () => {
     const prompt = args[args.indexOf("--message") + 1];
     expect(prompt).toContain("[Canal: instagram]\n[CustomerId: ig-123]");
     expect(prompt).toContain("mismos conocimientos, respuestas, tono, herramientas");
-    expect(prompt).toContain("hola\ntenés Miami Mint?");
+    expect(prompt).toContain("[INTERVENCION_AGRUPADA]");
+expect(prompt).toContain("Cantidad de mensajes: 2");
+expect(prompt).toContain("El primer mensaje comienza con un saludo: SI");
+expect(prompt).toContain("[Mensaje del cliente 1/2]\nhola");
+expect(prompt).toContain("[Mensaje del cliente 2/2]\ntenés Miami Mint?");
+expect(prompt).toContain("[FIN_INTERVENCION_AGRUPADA]");
   });
   it("lee el texto desde result.payloads en versiones nuevas de OpenClaw", async () => {
     const runner = vi.fn().mockResolvedValue({
