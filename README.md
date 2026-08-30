@@ -275,6 +275,31 @@ cd /home/openclaw/apps/chat-vaprizzio
 bash deploy/install-vaprizziobot-sale-platform-fix.sh
 ```
 
+## Catálogo dinámico del registrador administrativo de Telegram
+
+El agente administrativo `vaprizziobot` no debe depender de una lista estática
+de modelos. El instalador siguiente reemplaza la normalización por alias exactos:
+un nombre completo como `Lost Mary Dura` se conserva y no puede convertirse en
+`Lost Mary Mixer 30k`. Los modelos y sabores futuros pasan al resolvedor de
+Google Sheets sin requerir otra actualización del script.
+
+La corrección se limita al workspace administrativo de Telegram y no modifica
+el agente comercial de WhatsApp, Instagram o Messenger. Antes de escribir crea
+un respaldo privado y ejecuta pruebas locales que no acceden a Sheets:
+
+```bash
+cd /home/openclaw/apps/chat-vaprizzio
+bash deploy/install-vaprizziobot-dynamic-catalog-fix.sh
+```
+
+Después se puede auditar en una sola lectura, sin cambiar ventas ni stock, cada
+combinación de modelo y sabor visible en la hoja:
+
+```bash
+/home/openclaw/.openclaw/workspace/vaprizziobot/.venv/bin/python \
+  /home/openclaw/.openclaw/workspace/vaprizziobot/scripts/validar_catalogo_venta.py
+```
+
 ## Mantenimiento
 
 - Catálogo/precios/stock: editar `PRODUCTOS`.
