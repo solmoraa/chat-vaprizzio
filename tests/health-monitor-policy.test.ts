@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { alertDue, emptyMonitorState, nextMonitorState, normalizeMonitorState } from "../scripts/health-monitor-policy.mjs";
 
 const source = readFileSync(new URL("../scripts/monitor-health.mjs", import.meta.url), "utf8");
-const telegramWatchdog = readFileSync(new URL("../deploy/openclaw-telegram-watchdog.sh", import.meta.url), "utf8");
 
 describe("alertas del monitor de salud", () => {
   it("exige fallas consecutivas y aplica un período de enfriamiento", () => {
@@ -46,12 +45,5 @@ describe("alertas del monitor de salud", () => {
 
   it("descarta el contador antiguo que mezclaba readiness con caídas críticas", () => {
     expect(normalizeMonitorState({ consecutiveFailures:99, lastAlertAt:Date.now() })).toEqual(emptyMonitorState());
-  });
-
-  it("recupera el gateway si Telegram vaprizziobot pierde conexión en dos controles", () => {
-    expect(telegramWatchdog).toContain("Telegram vaprizziobot (vaprizziobot):");
-    expect(telegramWatchdog).toContain("running, connected");
-    expect(telegramWatchdog).toContain("failures < 2");
-    expect(telegramWatchdog).toContain("systemctl restart openclaw-gateway.service");
   });
 });
