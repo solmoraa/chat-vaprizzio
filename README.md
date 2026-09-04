@@ -218,7 +218,7 @@ atenciÃ³n existentes.
 `whatsapp_dispatch_accepted` informa `dispatchMs`; esto permite localizar una
 demora futura sin modificar el contenido de las respuestas.
 
-El gateway de OpenClaw es compartido por Telegram y los canales comerciales. En este servidor la unidad real es la unidad de sistema; debe estar habilitada al iniciar el VPS y reiniciarse sola si se corta. La unidad de usuario duplicada debe quedar deshabilitada para evitar dos gateways compitiendo:
+El gateway de OpenClaw es compartido por los canales comerciales y otros agentes instalados. En este servidor la unidad real es la unidad de sistema; debe estar habilitada al iniciar el VPS y reiniciarse sola si se corta. La unidad de usuario duplicada debe quedar deshabilitada para evitar dos gateways compitiendo:
 
 ```bash
 sudo install -d -m 755 /etc/systemd/system/openclaw-gateway.service.d
@@ -227,11 +227,6 @@ systemctl --user disable --now openclaw-gateway.service 2>/dev/null || true
 sudo systemctl daemon-reload
 sudo systemctl enable --now openclaw-gateway.service
 sudo systemctl restart openclaw-gateway.service
-sudo install -m 755 deploy/openclaw-telegram-watchdog.sh /usr/local/sbin/openclaw-telegram-watchdog
-sudo install -m 644 deploy/openclaw-telegram-watchdog.service /etc/systemd/system/openclaw-telegram-watchdog.service
-sudo install -m 644 deploy/openclaw-telegram-watchdog.timer /etc/systemd/system/openclaw-telegram-watchdog.timer
-sudo systemctl daemon-reload
-sudo systemctl enable --now openclaw-telegram-watchdog.timer
 ```
 
 Instalar también el monitor, que verifica cada minuto tanto el backend como el gateway y avisa por Telegram luego de fallas consecutivas:
@@ -251,29 +246,9 @@ una alerta de catálogo después de diez controles fallidos continuos. Una
 recuperación reinicia únicamente el contador correspondiente. Esto evita que
 una demora aislada de Google se anuncie como una caída completa del servicio.
 
-Verificar al final con `systemctl is-enabled openclaw-gateway.service`, `systemctl is-active openclaw-gateway.service`, `openclaw channels status --probe`, `systemctl list-timers openclaw-telegram-watchdog.timer` y `systemctl --user list-timers chat-vaprizzio-monitor.timer`. El watchdog exige dos controles fallidos consecutivos antes de reiniciar el gateway, para evitar reinicios por una demora aislada. Esto fortalece la disponibilidad de Telegram sin modificar el workspace ni los conocimientos de `vaprizziobot`.
-
-## Corrección del medio de venta en vaprizziobot
-
-El instalador `deploy/install-vaprizziobot-sale-platform-fix.sh` agrega una
-operación administrativa que modifica exclusivamente la plataforma de una
-venta existente. Antes de instalar crea un respaldo privado del agente. La
-instalación no modifica ninguna venta; una actualización real requiere número
-de orden y plataforma. También agrega una validación obligatoria para impedir
-que una venta manual se registre sin que el usuario haya confirmado el canal.
-Además normaliza los nombres alternativos de la forma de pago (incluido
-`forma_de_pago`, que algunos modelos generan) y obliga al agente a ejecutar un
-solo intento por pedido. La comprobación del instalador usa una lista de
-productos vacía y por eso no escribe en Sheets ni modifica stock.
-Los errores del dispatcher se entregan como JSON estructurado con `ok=false`
-sin un fallo de shell, evitando que Telegram exponga tarjetas `Exec failed`,
-rutas o nombres internos; el agente sigue considerándolos operaciones no
-realizadas.
-
-```bash
-cd /home/openclaw/apps/chat-vaprizzio
-bash deploy/install-vaprizziobot-sale-platform-fix.sh
-```
+Verificar al final con `systemctl is-enabled openclaw-gateway.service`,
+`systemctl is-active openclaw-gateway.service`, `openclaw channels status
+--probe` y `systemctl --user list-timers chat-vaprizzio-monitor.timer`.
 
 ## Mantenimiento
 
