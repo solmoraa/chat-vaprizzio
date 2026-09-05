@@ -4,7 +4,7 @@ import { TakeoverService } from "../src/services/takeover-service.js";
 import { InstagramClient } from "../src/channels/instagram/client.js";
 import type { Channel } from "../src/domain/types.js";
 
-const channels: Channel[] = ["whatsapp", "messenger", "instagram"];
+const channels: Channel[] = ["whatsapp", "messenger", "instagram", "web"];
 
 describe("paridad entre canales comerciales", () => {
   it.each(channels)("aplica la misma pausa humana y alerta en %s", async channel => {

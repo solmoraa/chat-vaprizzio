@@ -4,7 +4,7 @@ const string = (extra: Record<string, unknown> = {}) => ({ type:"string", ...ext
 const integer = (extra: Record<string, unknown> = {}) => ({ type:"integer", ...extra });
 const boolean = () => ({ type:"boolean" });
 const object = (properties: Record<string, unknown>) => ({ type:"object", additionalProperties:false, properties, required:Object.keys(properties) });
-const identity = { channel: string({ enum:["whatsapp","instagram","messenger"] }), customerId: string({ minLength:1 }) };
+const identity = { channel: string({ enum:["whatsapp","instagram","messenger", "web"] }), customerId: string({ minLength:1 }) };
 const schemas: Record<string, object> = {
   buscar_sabor:object({...identity,query:string()}), buscar_modelo:object({...identity,query:string()}),
   buscar_producto:object({...identity,model:string(),flavor:string()}), buscar_por_perfil:object({...identity,profile:string()}),
@@ -283,7 +283,7 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
           "REGLA AUTOMATICA PRIORITARIA PARA PRODUCTOS ESPECIFICOS: si el cliente nombra o elige un sabor, marca, modelo o producto concreto —aunque escriba solamente algo como Cherry Strazz— busca exclusivamente esa opción con buscar_sabor, buscar_modelo o buscar_producto. Está prohibido usar listar_catalogo o enumerar productos no relacionados. Si el resultado es AVAILABLE, respondé únicamente con las coincidencias pertinentes y el productUrl exacto; si falta productUrl usá https://www.vaprizzio.com/productos/. Si es OUT_OF_STOCK, decí claramente que no queda stock. Si es NOT_FOUND, decí que no lo tenemos. Para una consulta simple de disponibilidad o enlace no agregues características; la descripción de Tiendanube y datos como el botón de frescura del Ice King se usan solamente si piden información, comparación o recomendación."
         ];
     if (!explicitCatalog) rules.push("PROHIBICION DE CATALOGO COMPLETO: este turno no contiene un pedido explícito de catálogo o lista completa. No ejecutes listar_catalogo. Si hay un sabor, marca, modelo o producto concreto, resolvelo solamente con buscar_sabor, buscar_modelo o buscar_producto y no nombres artículos ajenos.");
-    if (freshTopic && ["whatsapp", "instagram", "messenger"].includes(channel) && customerId) {
+    if (freshTopic && ["whatsapp", "instagram", "messenger", "web"].includes(channel) && customerId) {
       const config=(event?.context?.pluginConfig ?? (api as unknown as {pluginConfig?:{baseUrl?:string;apiToken?:string}}).pluginConfig) as {baseUrl?:string;apiToken?:string} | undefined;
       const baseUrl=config?.baseUrl ?? "http://127.0.0.1:3000";
       const response=await fetch(`${baseUrl}/api/tools/iniciar_nuevo_tema`, {

@@ -1,5 +1,10 @@
-export type Channel = "whatsapp" | "instagram" | "messenger";
-export type ConversationState = "AI_ACTIVE" | "WAITING_HUMAN" | "HUMAN_ACTIVE";
+export type Channel =
+  | "whatsapp"
+  | "instagram"
+  | "messenger"
+  | "web";
+  
+  export type ConversationState = "AI_ACTIVE" | "WAITING_HUMAN" | "HUMAN_ACTIVE";
 
 export interface Product {
   sku: string;

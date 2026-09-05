@@ -1,6 +1,6 @@
 # chat-vaprizzio
 
-Agente de atención y ventas para Vaprizzio. WhatsApp (mediante OpenClaw) e Instagram (Meta Webhooks) comparten un único núcleo comercial: Google Sheets, memoria SQLite, carrito, mayorista, takeover humano y registro de ventas.
+Agente de atención y ventas para Vaprizzio. WhatsApp (mediante OpenClaw), Instagram (Meta Webhooks), Messenger y Web/Piri comparten un único núcleo comercial: Google Sheets, memoria SQLite, carrito, mayorista, takeover humano y registro de ventas.
 
 > Estado inicial: **TEST**. Producción está bloqueada por defecto y no hay números, cuentas, IDs, precios reales ni credenciales en el repositorio.
 
@@ -12,7 +12,7 @@ Agente de atención y ventas para Vaprizzio. WhatsApp (mediante OpenClaw) e Inst
 - Filtro obligatorio `Activo=SI` y `Stock>0`.
 - Herramientas deterministas para precio, stock, negocio, mayorista, carrito, resumen y takeover.
 - Memoria SQLite aislada por `channel + customer_id`.
-- Debounce configurable desde el último mensaje, igual en WhatsApp, Messenger e Instagram. El valor predeterminado es 6 segundos y puede sobrescribirse con `DEBOUNCE_MS`.
+- Debounce configurable desde el último mensaje, igual en WhatsApp, Messenger, Instagram y Web. El valor predeterminado es 6 segundos y puede sobrescribirse con `DEBOUNCE_MS`.
 - Estados `AI_ACTIVE`, `WAITING_HUMAN`, `HUMAN_ACTIVE`; en los dos últimos la capa bloquea herramientas de IA.
 - Precio negociado persistente y reanudación explícita.
 - Instagram con verificación de webhook y firma HMAC.
@@ -31,6 +31,26 @@ Instagram TEST -> Meta ------/                                  |-> Google Sheet
 ```
 
 OpenClaw se ocupa del canal WhatsApp, sesiones y conversación. Este servicio conserva la fuente de verdad: el LLM no puede crear precios o stock porque solo obtiene esos valores desde herramientas. Instagram manda el mensaje al mismo agente y usa el mismo `conversation_id` aislado por canal.
+
+## Piri / canal Web
+
+Piri no accede directamente a `chat-vaprizzio` desde el navegador.
+
+El flujo previsto es:
+
+Piri → vaprizzio-backend → chat-vaprizzio → OpenClaw → agente Vaprizzio.
+
+`vaprizzio-backend` llama internamente:
+
+`POST /internal/piri/message`
+
+con:
+
+```json
+{
+  "sessionId": "identificador-de-sesion",
+  "message": "mensaje del cliente"
+}
 
 ## Estructura
 

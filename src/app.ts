@@ -1,6 +1,7 @@
 import express from "express";
 import pino from "pino";
 import { pinoHttp } from "pino-http";
+import { z } from "zod";
 import type { AppConfig } from "./config/env.js";
 import type { AgentToolService } from "./agent/tool-service.js";
 import type { ConversationRepository } from "./database/conversation-repository.js";
@@ -19,6 +20,45 @@ import {
   casualStoryReply,
   isCasualStoryReaction,
 } from "./services/story-reply.js";
+
+const piriMessageSchema = z
+  .object({
+    sessionId: z.string().trim().min(1).max(128),
+    message: z.string().trim().min(1).max(1000),
+  })
+  .strict();
+
+function isOpenClawTimeoutError(error: unknown) {
+  if (!(error instanceof Error)) return false;
+
+  const details = error as Error & {
+    killed?: boolean;
+    code?: string;
+  };
+
+  return (
+    details.killed === true ||
+    details.code === "ETIMEDOUT" ||
+    /timeout|timed out/i.test(error.message)
+  );
+}
+
+const piriJson = express.json({
+  limit: "8kb",
+});
+
+const parsePiriJson: express.RequestHandler = (req, res, next) => {
+  piriJson(req, res, (error) => {
+    if (!error) return next();
+
+    const status = (error as { status?: number }).status === 413 ? 413 : 400;
+
+    return res.status(status).json({
+      ok: false,
+      error: status === 413 ? "REQUEST_TOO_LARGE" : "INVALID_JSON",
+    });
+  });
+};
 
 export interface AppDependencies {
   config: AppConfig;
@@ -110,18 +150,24 @@ export function createApp(d: AppDependencies) {
     } catch (error) {
       logger.error({ err: error, channel }, "arrival_notification_failed");
     }
-    if (channel === "whatsapp")
+    if (channel === "whatsapp") {
       await d.openclaw.sendDirect(
         channel,
         customerId,
         customerMessage,
         d.config.WHATSAPP_ACCOUNT,
       );
-    else {
-      if (!d.instagram) throw new Error("INSTAGRAM_NOT_CONFIGURED");
+    } else if (channel === "instagram" || channel === "messenger") {
+      if (!d.instagram) {
+        throw new Error("INSTAGRAM_NOT_CONFIGURED");
+      }
+
       await d.instagram.send(channel, customerId, customerMessage);
     }
+
     logger.info({ channel, kind }, "paused_arrival_handled");
+
+    return customerMessage;
   };
 
   const rate = new Map<string, { minute: number; count: number }>();
@@ -157,12 +203,10 @@ export function createApp(d: AppDependencies) {
         });
       } catch (error) {
         req.log.error({ err: error, tool: toolName }, "tool_failed");
-        res
-          .status(400)
-          .json({
-            ok: false,
-            error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
-          });
+        res.status(400).json({
+          ok: false,
+          error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
+        });
       }
     },
   );
@@ -315,9 +359,14 @@ export function createApp(d: AppDependencies) {
       const arrivalKind = arrivalUpdateKind(text);
       if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
         req.log.info({ channel, arrivalKind }, "meta_paused_arrival_queued");
-        d.debounce.push(`${channel}:${customerId}`, text, (messages) =>
-          deliverPausedArrival(channel, customerId, messages, arrivalKind),
-        );
+        d.debounce.push(`${channel}:${customerId}`, text, async (messages) => {
+          await deliverPausedArrival(
+            channel,
+            customerId,
+            messages,
+            arrivalKind,
+          );
+        });
         continue;
       }
       if (opensFreshTopic(text)) d.takeover.resume(channel, customerId);
@@ -479,8 +528,17 @@ export function createApp(d: AppDependencies) {
       const arrivalKind = arrivalUpdateKind(message);
 
       if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
-        d.debounce.push(`${channel}:${customerId}`, message, (messages) =>
-          deliverPausedArrival(channel, customerId, messages, arrivalKind),
+        d.debounce.push(
+          `${channel}:${customerId}`,
+          message,
+          async (messages) => {
+            await deliverPausedArrival(
+              channel,
+              customerId,
+              messages,
+              arrivalKind,
+            );
+          },
         );
 
         return res.json({
@@ -535,6 +593,134 @@ export function createApp(d: AppDependencies) {
       });
     },
   );
+
+  app.post("/internal/piri/message", parsePiriJson, async (req, res) => {
+    if (!d.config.PIRI_INTERNAL_SECRET) {
+      return res.status(503).json({
+        ok: false,
+        error: "PIRI_NOT_CONFIGURED",
+      });
+    }
+
+    if (req.header("x-internal-secret") !== d.config.PIRI_INTERNAL_SECRET) {
+      return res.status(401).json({
+        ok: false,
+        error: "UNAUTHORIZED",
+      });
+    }
+
+    const parsed = piriMessageSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: "INVALID_REQUEST",
+      });
+    }
+
+    const channel: Channel = "web";
+    const customerId = parsed.data.sessionId;
+    const message = parsed.data.message;
+
+    try {
+      /*
+       * Guardamos el mensaje usando la misma memoria
+       * de conversaciones que los demás canales.
+       */
+      d.takeover.recordCustomerMessage(channel, customerId, message);
+
+      /*
+       * Mantenemos la misma excepción de llegada
+       * física durante una intervención humana.
+       */
+      const arrivalKind = arrivalUpdateKind(message);
+
+      if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
+        const reply = await deliverPausedArrival(
+          channel,
+          customerId,
+          [message],
+          arrivalKind,
+        );
+
+        const conversation = d.conversations.getOrCreate(channel, customerId);
+
+        return res.json({
+          ok: true,
+          reply,
+          state: conversation.state,
+        });
+      }
+
+      /*
+       * Exactamente igual que WhatsApp/Meta:
+       * saludo o consulta comercial claramente nueva
+       * puede reactivar la IA.
+       */
+      if (opensFreshTopic(message)) {
+        d.takeover.resume(channel, customerId);
+      }
+
+      /*
+       * Si la conversación sigue en takeover humano,
+       * no llamamos a OpenClaw.
+       */
+      if (!d.takeover.canAiReply(channel, customerId)) {
+        const conversation = d.conversations.getOrCreate(channel, customerId);
+
+        return res.json({
+          ok: true,
+          reply: null,
+          state: conversation.state,
+        });
+      }
+
+      /*
+       * MISMO OpenClawClient y MISMO agente.
+       *
+       * OpenClawClient ya construye:
+       * sessionKey = `${channel}:${customerId}`
+       *
+       * Por lo tanto:
+       * web:<sessionId>
+       */
+      const reply = await d.openclaw.reply(channel, customerId, [message]);
+
+      const conversation = d.conversations.getOrCreate(channel, customerId);
+
+      return res.json({
+        ok: true,
+        reply: reply === "NO_REPLY" ? null : reply,
+        state: conversation.state,
+      });
+    } catch (error) {
+      /*
+       * El logger ya redacta x-internal-secret.
+       * No devolvemos stack ni detalles internos.
+       */
+      req.log.error(
+        {
+          err: error,
+          channel,
+          customerId,
+        },
+        "piri_message_failed",
+      );
+
+      if (isOpenClawTimeoutError(error)) {
+        return res.status(504).json({
+          ok: false,
+          error: "OPENCLAW_TIMEOUT",
+        });
+      }
+
+      return res.status(502).json({
+        ok: false,
+        error: "AGENT_ERROR",
+      });
+    }
+  });
+
   app.post(
     "/webhooks/internal",
     express.json({ limit: "32kb" }),
@@ -588,11 +774,9 @@ export function createApp(d: AppDependencies) {
         }
         return res.status(400).json({ error: "UNKNOWN_COMMAND" });
       } catch (error) {
-        return res
-          .status(400)
-          .json({
-            error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
-          });
+        return res.status(400).json({
+          error: error instanceof Error ? error.message : "UNKNOWN_ERROR",
+        });
       }
     },
   );
