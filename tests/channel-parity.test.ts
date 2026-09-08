@@ -19,15 +19,21 @@ describe("paridad entre canales comerciales", () => {
     expect(notify).toHaveBeenCalledWith(expect.objectContaining({ channel, customerId:"cliente", messages:["necesito ayuda"] }));
   });
 
-  it.each(channels)("reinicia el estado después de 12 horas en %s", channel => {
+  it.each(channels)("reanuda la IA después de 12 horas y conserva la referencia del pedido en %s", channel => {
     const repo = new ConversationRepository(":memory:", 720);
     const conversation = repo.getOrCreate(channel, "cliente");
     conversation.state = "WAITING_HUMAN";
     conversation.lastMessages = ["tema anterior"];
+    conversation.memory = { ...conversation.memory!, receiptReceived:true, deliveryMode:"punto_retiro" };
     conversation.lastActivity = new Date(Date.now() - 721 * 60_000).toISOString();
     repo.save(conversation);
 
-    expect(repo.getOrCreate(channel, "cliente")).toMatchObject({ state:"AI_ACTIVE", lastMessages:[], pausedUntil:null });
+    expect(repo.getOrCreate(channel, "cliente")).toMatchObject({
+      state:"AI_ACTIVE",
+      lastMessages:["tema anterior"],
+      pausedUntil:null,
+      memory:{ receiptReceived:true, deliveryMode:"punto_retiro" }
+    });
   });
 });
 

@@ -148,9 +148,20 @@ export class ConversationRepository {
         return existing;
       }
 
-      const fresh = this.fresh(channel, customerId);
-      this.save(fresh);
-      return fresh;
+      // Después de 12 horas el bot puede volver a atender, pero no se borra
+      // la referencia del pedido anterior. Esto permite responder una
+      // consulta tardía sobre una compra ya coordinada sin conservar una
+      // pausa humana indefinidamente.
+      existing.state = "AI_ACTIVE";
+      existing.pausedUntil = null;
+      existing.cart = [];
+      existing.currentProduct = null;
+      existing.currentFlavor = null;
+      existing.negotiatedQuantity = null;
+      existing.negotiatedPrice = null;
+      existing.lastActivity = new Date().toISOString();
+      this.save(existing);
+      return existing;
     }
 
     const c = this.fresh(channel, customerId);

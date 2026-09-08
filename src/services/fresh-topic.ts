@@ -12,8 +12,11 @@ export const opensFreshTopic = (value: string) => {
   if (continuation) return false;
 
   const greeting = /^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)(\b|[!?])/.test(text);
-  const commercialQuestion = /\b(vape|vapes|vaper|vaporizador|vaporizadores|marca|marcas|modelo|modelos|sabor|sabores|gusto|gustos|stock|precio|precios|puff|puffs|pitada|pitadas|mayorista|mayoristas|catalogo)\b/.test(text);
-  return greeting || commercialQuestion;
+  // Una consulta comercial no es, por sí sola, una conversación nueva.
+  // Si una persona ya tomó el chat, sólo un saludo explícito (o /new)
+  // devuelve el control al bot. Así evitamos que responda nuevamente a
+  // mensajes posteriores de una coordinación humana.
+  return greeting;
 };
 
 export type ArrivalUpdateKind = "outside" | "near";

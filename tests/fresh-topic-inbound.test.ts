@@ -5,9 +5,7 @@ describe("reactivación de temas nuevos al ingresar mensajes", () => {
   it.each([
     "/new",
     "Hola",
-    "hola! los de ignite de cuantos puff son?",
-    "tenés stock de Lost Mary?",
-    "qué sabores tienen?"
+    "hola! los de ignite de cuantos puff son?"
   ])("reactiva con %s", message => {
     expect(opensFreshTopic(message)).toBe(true);
   });
@@ -15,7 +13,10 @@ describe("reactivación de temas nuevos al ingresar mensajes", () => {
   it.each([
     "cómo seguimos con mi pedido?",
     "cuánto sale ese envío?",
-    "seguimos con el Uber que coordinamos"
+    "seguimos con el Uber que coordinamos",
+    "tenés stock de Lost Mary?",
+    "qué sabores tienen?",
+    "Audi blanco"
   ])("mantiene la intervención con %s", message => {
     expect(opensFreshTopic(message)).toBe(false);
   });

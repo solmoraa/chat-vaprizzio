@@ -138,18 +138,16 @@ export function createApp(d: AppDependencies) {
       kind === "outside"
         ? `🚨🚨🚨 CLIENTE AFUERA O EN LA PUERTA DEL PUNTO DE RETIRO 🚨🚨🚨 Estado: ${status}`
         : `🚨 CLIENTE LLEGANDO O CERCA DEL PUNTO DE RETIRO 🚨 Estado: ${status}`;
-    try {
-      await d.takeover.request(
-        channel,
-        customerId,
-        reason,
-        undefined,
-        undefined,
-        true,
-      );
-    } catch (error) {
-      logger.error({ err: error, channel }, "arrival_notification_failed");
-    }
+    // Primero se confirma la alerta. Si Telegram no la recibió, no enviamos
+    // un "Ya salgo" que dejaría al cliente esperando sin que el equipo sepa.
+    await d.takeover.request(
+      channel,
+      customerId,
+      reason,
+      undefined,
+      undefined,
+      true,
+    );
     if (channel === "whatsapp") {
       await d.openclaw.sendDirect(
         channel,
@@ -357,8 +355,8 @@ export function createApp(d: AppDependencies) {
       c.lastActivity = new Date().toISOString();
       d.conversations.save(c);
       const arrivalKind = arrivalUpdateKind(text);
-      if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
-        req.log.info({ channel, arrivalKind }, "meta_paused_arrival_queued");
+      if (arrivalKind) {
+        req.log.info({ channel, arrivalKind }, "meta_arrival_queued");
         d.debounce.push(`${channel}:${customerId}`, text, async (messages) => {
           await deliverPausedArrival(
             channel,
@@ -527,7 +525,7 @@ export function createApp(d: AppDependencies) {
 
       const arrivalKind = arrivalUpdateKind(message);
 
-      if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
+      if (arrivalKind) {
         d.debounce.push(
           `${channel}:${customerId}`,
           message,
@@ -635,7 +633,7 @@ export function createApp(d: AppDependencies) {
        */
       const arrivalKind = arrivalUpdateKind(message);
 
-      if (!d.takeover.canAiReply(channel, customerId) && arrivalKind) {
+      if (arrivalKind) {
         const reply = await deliverPausedArrival(
           channel,
           customerId,
@@ -653,9 +651,8 @@ export function createApp(d: AppDependencies) {
       }
 
       /*
-       * Exactamente igual que WhatsApp/Meta:
-       * saludo o consulta comercial claramente nueva
-       * puede reactivar la IA.
+       * Exactamente igual que WhatsApp/Meta: sólo un saludo
+       * explícito puede reactivar la IA después de un takeover.
        */
       if (opensFreshTopic(message)) {
         d.takeover.resume(channel, customerId);
