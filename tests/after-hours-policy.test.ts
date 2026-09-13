@@ -28,42 +28,31 @@ describe("atención después del cierre del punto de retiro", () => {
     }
   });
 
-  it("entre las 19 y las 23 deriva las consultas comerciales", () => {
+  it("desde las 19 deriva los retiros para coordinar el día siguiente", () => {
     for (const instructions of [agents, skill]) {
       expect(instructions).toMatch(
-        /Desde las 19:00 y antes de las 23:00/i
+        /(?:desde|despu[eé]s de las) 19/i
       );
 
       expect(instructions).toContain(
-        "reportar_consulta_fuera_horario"
+        "coordinar_visita_local"
       );
 
       expect(instructions).toContain("Telegram");
     }
   });
 
-  it("desde las 23 deja los pedidos para el día siguiente", () => {
+  it("aplica la coordinación de mañana también después de las 23", () => {
     for (const instructions of [agents, skill]) {
-      expect(instructions).toContain("Desde las 23:00 inclusive");
+      expect(instructions).toMatch(/despu[eé]s de las 22.*23|22.*23/is);
       expect(instructions).toContain("mañana");
     }
   });
 
-  it("después de las 22 rechaza retiros inmediatos sin generar alertas", () => {
+  it("no reemplaza un retiro fuera de hora con la web o Uber/Didi", () => {
     for (const instructions of [agents, skill]) {
-      expect(instructions).toContain(
-        "horario para retiros y envíos ya terminó"
-      );
-
-      expect(instructions).toContain(
-        "Didi o Uber para mañana"
-      );
-
-      expect(instructions).toMatch(/no ejecutes.+alerta/is);
-
-      expect(instructions).toMatch(
-        /no (digas|prometas).+(verificar|retiro)/is
-      );
+      expect(instructions).toMatch(/no .*web.*Uber\/Didi|web.*Uber\/Didi/is);
+      expect(instructions).toMatch(/coordinar.*mañana|mañana.*coordinar/is);
     }
   });
 

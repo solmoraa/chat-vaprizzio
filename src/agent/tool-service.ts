@@ -13,12 +13,12 @@ export class AgentToolService {
     const channel = args.channel as Channel; const customerId = String(args.customerId ?? "");
     const triggerMessage = String(args.triggerMessage ?? "").trim();
     if (channel && customerId && triggerMessage) this.takeover.recordCustomerMessage(channel, customerId, triggerMessage);
-    if (channel && customerId && triggerMessage && opensFreshTopic(triggerMessage)) this.takeover.resume(channel, customerId);
+    if (channel && customerId && triggerMessage && opensFreshTopic(triggerMessage)) this.takeover.resumeFromCustomerMessage(channel, customerId);
     const newTopicReadTools = new Set(["buscar_sabor", "buscar_modelo", "buscar_producto", "buscar_por_perfil", "consultar_ficha_producto", "comparar_modelos", "listar_catalogo", "consultar_stock", "consultar_precio", "consultar_negocio"]);
     const arrivalTools = new Set(["reportar_llegada_cambio", "reportar_llegada_retiro", "reportar_recordatorio_afuera", "reportar_llegada_sin_producto", "reportar_llegada_sin_horario"]);
     if (channel && customerId && !this.takeover.canAiReply(channel, customerId)) {
       const latestMessage = triggerMessage || this.conversations?.getOrCreate(channel, customerId).lastMessages.at(-1) || "";
-      if (newTopicReadTools.has(name) && opensFreshTopic(latestMessage)) this.takeover.resume(channel, customerId);
+      if (newTopicReadTools.has(name) && opensFreshTopic(latestMessage)) this.takeover.resumeFromCustomerMessage(channel, customerId);
       else if (name !== "get_conversation_state" && name !== "iniciar_nuevo_tema" && !arrivalTools.has(name)) return {
         blocked:true,
         reason:"HUMAN_COORDINATION_ACTIVE",
@@ -242,7 +242,6 @@ return {
         return { action:"RECORDATORIO_URGENTE", customerMessage:"Ya salgo! Disculpá la demora", state:result.state, pausedUntil:result.pausedUntil };
       }
       case "coordinar_visita_local": {
-        if (buenosAiresHour() >= 22) return { action:"PROGRAMAR_MANANA", customerMessage:"Perdón, pero el horario para retiros y envíos ya terminó. Si querés, hacé tu pedido por la web y con envío Flex te llegaría mañana, o podemos coordinar por este medio un Didi o Uber para mañana y que sea más rápido:\nhttps://www.vaprizzio.com/productos/\n\nSi pagás por transferencia, cuando termines la compra mandame el comprobante por acá 😊" };
         const visitType = String(args.visitType ?? "retiro").toLowerCase();
         const product = String(args.product ?? "");
         const preferredTime = String(args.preferredTime ?? "");
@@ -255,6 +254,10 @@ return {
         }
         const label = visitType === "cambio" ? "cambio de producto en el punto de retiro" : "retiro en el punto de retiro";
         const details = [product, preferredTime ? `Horario propuesto: ${preferredTime}` : ""].filter(Boolean);
+        if (buenosAiresHour() >= 19) {
+          const result = await this.takeover.request(channel, customerId, `Coordinar mañana: el horario de ${label} terminó por hoy`, undefined, details.length ? details : undefined);
+          return { action:"COORDINAR_MANANA", customerMessage:"El horario de retiro por hoy ya terminó. Podrías pasar mañana; dame un segundo que coordinamos el horario.", address:"Av. Larrazábal 3437, Villa Lugano, CABA", pickupType:"PUNTO_DE_RETIRO_GRATUITO", scheduleConfirmed:false, state:result.state, pausedUntil:result.pausedUntil };
+        }
         const result = await this.takeover.request(channel, customerId, `Coordinar horario para ${label}`, undefined, details.length ? details : undefined);
         return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", pickupType:"PUNTO_DE_RETIRO_GRATUITO", scheduleConfirmed:false, state: result.state, pausedUntil: result.pausedUntil };
       }
@@ -561,7 +564,7 @@ return {
       }
       case "cerrar_conversacion": { this.conversations?.releaseWholesaleReservation(channel, customerId); return { action: "CONVERSACION_CERRADA", customerMessage: "Gracias por escribirnos!", freshContextNextMessage: true, conversation: this.takeover.close(channel, customerId) }; }
       case "iniciar_nuevo_tema": {
-        const resumed = this.takeover.resume(channel, customerId);
+        const resumed = this.takeover.resumeFromCustomerMessage(channel, customerId);
         return { action:"NUEVO_TEMA", state:resumed.state, contextPreserved:true, instruction:"Respondé la consulta actual sin mencionar el tema anterior. Usá el historial solo si el cliente lo relaciona explícitamente." };
       }
       case "carrito_agregar": return { cart: this.cart.add(channel, customerId, String(args.sku), Number(args.quantity)) };

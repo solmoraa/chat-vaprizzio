@@ -72,4 +72,35 @@ describe("punto de retiro y coordinación humana", () => {
     expect(takeover.canAiReply(channel, customerId)).toBe(false);
     vi.useRealTimers();
   });
+
+  it.each<Channel>(["whatsapp", "instagram", "messenger"])("fuera de horario informa mañana y alerta a %s", async (channel) => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-09T22:30:00Z")); // 19:30 en Buenos Aires
+    const repo = new ConversationRepository(":memory:");
+    const notify = vi.fn();
+    const takeover = new TakeoverService(repo, { notify });
+    const tools = new AgentToolService({} as never, {} as never, takeover, {} as never, undefined, repo);
+
+    const result = await tools.execute("coordinar_visita_local", {
+      channel,
+      customerId:`manana-${channel}`,
+      visitType:"retiro",
+      product:"Elfbar Ice King",
+      preferredTime:"mañana a las 11",
+      triggerMessage:"Puedo pasar mañana a las 11?"
+    });
+
+    expect(notify).toHaveBeenCalledOnce();
+    expect(notify).toHaveBeenCalledWith(expect.objectContaining({
+      channel,
+      reason:expect.stringContaining("terminó por hoy")
+    }));
+    expect(result).toMatchObject({
+      action:"COORDINAR_MANANA",
+      customerMessage:"El horario de retiro por hoy ya terminó. Podrías pasar mañana; dame un segundo que coordinamos el horario.",
+      state:"WAITING_HUMAN"
+    });
+    expect(JSON.stringify(result)).not.toMatch(/vaprizzio\.com|Uber|Didi/i);
+    vi.useRealTimers();
+  });
 });

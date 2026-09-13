@@ -85,6 +85,16 @@ export function createApp(d: AppDependencies) {
     },
   });
   app.use(pinoHttp({ logger }));
+  const resumeFromCustomerMessage = (channel: Channel, customerId: string) => {
+    // Mantiene compatibilidad con adaptadores previos durante un despliegue
+    // escalonado; el servicio real siempre usa la variante que respeta la
+    // pausa de dos horas creada por un mensaje humano.
+    const takeover = d.takeover as TakeoverService & {
+      resumeFromCustomerMessage?: (channel: Channel, customerId: string) => unknown;
+    };
+    return takeover.resumeFromCustomerMessage?.(channel, customerId)
+      ?? d.takeover.resume(channel, customerId);
+  };
   app.get("/health", (_req, res) =>
     res.json({
       ok: true,
@@ -367,7 +377,7 @@ export function createApp(d: AppDependencies) {
         });
         continue;
       }
-      if (opensFreshTopic(text)) d.takeover.resume(channel, customerId);
+      if (opensFreshTopic(text)) resumeFromCustomerMessage(channel, customerId);
       if (!d.takeover.canAiReply(channel, customerId)) {
         req.log.info({ channel }, "meta_message_paused");
         continue;
@@ -548,7 +558,7 @@ export function createApp(d: AppDependencies) {
       }
 
       if (opensFreshTopic(message)) {
-        d.takeover.resume(channel, customerId);
+        resumeFromCustomerMessage(channel, customerId);
       }
 
       const accept = d.takeover.canAiReply(channel, customerId);
@@ -655,7 +665,7 @@ export function createApp(d: AppDependencies) {
        * explícito puede reactivar la IA después de un takeover.
        */
       if (opensFreshTopic(message)) {
-        d.takeover.resume(channel, customerId);
+        resumeFromCustomerMessage(channel, customerId);
       }
 
       /*

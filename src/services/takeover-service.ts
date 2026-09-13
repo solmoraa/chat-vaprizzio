@@ -4,9 +4,18 @@ import type { HumanNotifier } from "../notifications/notifier.js";
 
 export class TakeoverService {
   private readonly recentAlerts = new Map<string, number>();
+  private static readonly HUMAN_MESSAGE_PAUSE_MS = 2 * 60 * 60 * 1_000;
   constructor(private readonly repo: ConversationRepository, private readonly notifier: HumanNotifier) {}
-  canAiReply(channel: Channel, customerId: string, _now = new Date()) {
+  canAiReply(channel: Channel, customerId: string, now = new Date()) {
     const conversation = this.repo.getOrCreate(channel, customerId);
+    if (
+      conversation.state === "HUMAN_ACTIVE" &&
+      conversation.pausedUntil &&
+      new Date(conversation.pausedUntil).getTime() <= now.getTime()
+    ) {
+      this.repo.setState(channel, customerId, "AI_ACTIVE", null);
+      return true;
+    }
     return conversation.state === "AI_ACTIVE";
   }
   async request(channel: Channel, customerId: string, reason: string, quantity?: number, products?: string[], forceNotification = false) {
@@ -28,10 +37,15 @@ export class TakeoverService {
     text
   );
 
+  const pausedUntil = new Date(
+    Date.now() + TakeoverService.HUMAN_MESSAGE_PAUSE_MS,
+  ).toISOString();
+
   let c = this.repo.setState(
     channel,
     customerId,
-    "HUMAN_ACTIVE"
+    "HUMAN_ACTIVE",
+    pausedUntil,
   );
 
   const match = text.match(
@@ -55,7 +69,17 @@ export class TakeoverService {
 
   return c;
 }
+  // Sólo se usa para una reanudación humana explícita (/reanudar).
   resume(channel: Channel, customerId: string) { return this.repo.setState(channel, customerId, "AI_ACTIVE", null); }
+  resumeFromCustomerMessage(channel: Channel, customerId: string, now = new Date()) {
+    const conversation = this.repo.getOrCreate(channel, customerId);
+    if (
+      conversation.state === "HUMAN_ACTIVE" &&
+      conversation.pausedUntil &&
+      new Date(conversation.pausedUntil).getTime() > now.getTime()
+    ) return conversation;
+    return this.repo.setState(channel, customerId, "AI_ACTIVE", null);
+  }
   close(channel: Channel, customerId: string) { return this.repo.close(channel, customerId); }
   recordCustomerMessage(channel: Channel, customerId: string, message: string) { return this.repo.appendMessage(channel, customerId, message); }
 }
