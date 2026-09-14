@@ -142,7 +142,7 @@ openclaw dashboard
 8. Iniciar este servicio y luego el gateway; comprobar `openclaw gateway status`.
 9. Enviar desde un teléfono permitido: `Hola`, luego dentro de seis segundos `tenes Miami?`, luego `cuanto sale?`. Debe procesarse como un bloque.
 
-Para conservar el debounce, el hook de mensajes entrantes de WhatsApp debe reenviar cada mensaje a `POST /webhooks/openclaw/inbound` y no activar una segunda ruta directa al agente. Esa ruta persiste el mensaje, respeta takeover y recién despacha a OpenClaw tras seis segundos de silencio. Messenger e Instagram usan la misma espera. Verificar en TEST que cada bloque genera una sola ejecución antes de habilitar más remitentes.
+Para conservar el debounce, el relay de WhatsApp debe reenviar cada mensaje a `POST /webhooks/openclaw/inbound` y no activar una segunda ruta directa al agente. Los recibidos usan `direction:"inbound"`. Si el equipo escribe manualmente, debe reenviar `direction:"outbound", fromMe:true, senderType:"human"` (también acepta `isFromMe:true`); esto cancela una respuesta pendiente y pausa la IA dos horas, incluso sin takeover previo. Los envíos automáticos deben identificarse como `senderType:"automation"` (o `automated:true`) para no pausar al bot por su propio mensaje. Messenger e Instagram usan la misma espera. Verificar en TEST que cada bloque genera una sola ejecución antes de habilitar más remitentes.
 
 Para desconectar: cerrar la sesión desde Dispositivos vinculados y quitar/deshabilitar el canal en OpenClaw. Las credenciales de WhatsApp residen fuera del repo bajo el estado local de OpenClaw.
 

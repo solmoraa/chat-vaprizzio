@@ -28,6 +28,32 @@ const piriMessageSchema = z
   })
   .strict();
 
+type WhatsAppRelayMessage = {
+  channel: "whatsapp";
+  customerId: string;
+  message: string;
+  /** El relay debe marcar explícitamente los mensajes escritos por una persona. */
+  direction?: "inbound" | "outbound" | "sent";
+  fromMe?: boolean;
+  isFromMe?: boolean;
+  senderType?: "customer" | "human" | "automation";
+  automated?: boolean;
+};
+
+function isHumanWhatsAppMessage(message: WhatsAppRelayMessage) {
+  if (message.senderType === "automation" || message.automated === true)
+    return false;
+
+  const sentFromBusinessNumber =
+    message.fromMe === true || message.isFromMe === true;
+
+  return (
+    message.senderType === "human" ||
+    ((message.direction === "outbound" || message.direction === "sent") &&
+      sentFromBusinessNumber)
+  );
+}
+
 function isOpenClawTimeoutError(error: unknown) {
   if (!(error instanceof Error)) return false;
 
@@ -517,28 +543,47 @@ export function createApp(d: AppDependencies) {
         return res.sendStatus(401);
       }
 
-      const { channel, customerId, message } = req.body as {
-        channel: "whatsapp";
-        customerId: string;
-        message: string;
-      };
+      const message = req.body as WhatsAppRelayMessage;
+      const { channel, customerId } = message;
 
-      if (channel !== "whatsapp" || !customerId || !message) {
+      if (channel !== "whatsapp" || !customerId || !message.message) {
         return res.sendStatus(400);
+      }
+
+      if (isHumanWhatsAppMessage(message)) {
+        // Un mensaje manual siempre gana. No esperamos a que hubiera una
+        // alerta/takeover previo: cancelamos una respuesta ya encolada y
+        // bloqueamos las siguientes durante dos horas.
+        d.debounce.cancel(`${channel}:${customerId}`);
+        const conversation = d.takeover.humanMessage(
+          channel,
+          customerId,
+          message.message,
+        );
+        req.log.info(
+          { channel, customerId, pausedUntil: conversation.pausedUntil },
+          "whatsapp_human_message_paused",
+        );
+        return res.json({
+          accept: false,
+          queued: false,
+          state: conversation.state,
+          pausedUntil: conversation.pausedUntil,
+        });
       }
 
       const c = d.conversations.getOrCreate(channel, customerId);
 
-      c.lastMessages.push(message);
+      c.lastMessages.push(message.message);
       c.lastActivity = new Date().toISOString();
       d.conversations.save(c);
 
-      const arrivalKind = arrivalUpdateKind(message);
+      const arrivalKind = arrivalUpdateKind(message.message);
 
       if (arrivalKind) {
         d.debounce.push(
           `${channel}:${customerId}`,
-          message,
+          message.message,
           async (messages) => {
             await deliverPausedArrival(
               channel,
@@ -557,7 +602,7 @@ export function createApp(d: AppDependencies) {
         });
       }
 
-      if (opensFreshTopic(message)) {
+      if (opensFreshTopic(message.message)) {
         resumeFromCustomerMessage(channel, customerId);
       }
 
@@ -566,7 +611,7 @@ export function createApp(d: AppDependencies) {
       if (accept) {
         d.debounce.push(
           `${channel}:${customerId}`,
-          message,
+          message.message,
           async (messages) => {
             if (!d.takeover.canAiReply(channel, customerId)) {
               logger.info(
