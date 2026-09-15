@@ -116,4 +116,54 @@ describe("mensaje manual saliente de WhatsApp", () => {
 
     await expect(response.json()).resolves.toMatchObject({ state: "HUMAN_ACTIVE" });
   });
+
+  it("no interrumpe cuando el humano inició la conversación y el cliente responde con una foto", async () => {
+    const repo = new ConversationRepository(":memory:");
+    const dispatch = vi.fn();
+    const app = createApp({
+      config: loadConfig({ OPENCLAW_HOOK_TOKEN: "hook-token", DEBOUNCE_MS: "0" }),
+      tools: { catalog: { priceList: vi.fn() }, execute: vi.fn() } as never,
+      conversations: repo,
+      debounce: new MessageDebouncer(0),
+      openclaw: { dispatch, sendDirect: vi.fn(), reply: vi.fn() } as never,
+      takeover: new TakeoverService(repo, { notify: vi.fn() }),
+    });
+    server = app.listen(0, "127.0.0.1");
+    await new Promise<void>(resolve => server!.once("listening", resolve));
+    const address = server.address();
+    if (!address || typeof address === "string") throw new Error("NO_ADDRESS");
+    const url = `http://127.0.0.1:${address.port}/webhooks/openclaw/inbound`;
+    const send = (body: Record<string, unknown>) => fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json", authorization: "Bearer hook-token" },
+      body: JSON.stringify(body),
+    });
+
+    const humanReply = await send({
+      channel: "whatsapp",
+      customerId: "postventa",
+      message: "Hola! Cómo te llegó el vape?",
+      direction: "outbound",
+      fromMe: true,
+      senderType: "human",
+    });
+    await expect(humanReply.json()).resolves.toMatchObject({
+      accept: false,
+      state: "HUMAN_ACTIVE",
+    });
+
+    const customerReply = await send({
+      channel: "whatsapp",
+      customerId: "postventa",
+      message: "[El cliente envió una foto: todo bien]",
+      direction: "inbound",
+    });
+    await expect(customerReply.json()).resolves.toMatchObject({
+      accept: false,
+      queued: false,
+      state: "HUMAN_ACTIVE",
+    });
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(dispatch).not.toHaveBeenCalled();
+  });
 });
