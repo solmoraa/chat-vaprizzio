@@ -81,6 +81,15 @@ export class ConversationRepository {
     return `${channel}:${customerId}`;
   }
 
+  /** Consulta sin crear una conversación nueva ni alterar su actividad. */
+  find(channel: Channel, customerId: string): Conversation | null {
+    const row = this.db
+      .prepare("SELECT * FROM conversations WHERE id = ?")
+      .get(this.id(channel, customerId)) as Record<string, unknown> | undefined;
+
+    return row ? this.map(row) : null;
+  }
+
   private emptyMemory(): ConversationMemory {
     return {
       deliveryMode: "sin_definir",

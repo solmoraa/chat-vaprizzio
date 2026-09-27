@@ -51,6 +51,7 @@ con:
   "sessionId": "identificador-de-sesion",
   "message": "mensaje del cliente"
 }
+```
 
 ## Estructura
 
@@ -69,6 +70,34 @@ fixtures           catálogo exclusivamente ficticio
 tests              pruebas unitarias y anti-alucinación
 scripts            auditoría de secretos
 ```
+
+## Arquitectura por capas y API REST
+
+La aplicación conserva los webhooks de WhatsApp/OpenClaw, Instagram y
+Messenger. La API REST es una entrada administrativa adicional y está
+protegida con el mismo `TOOL_API_TOKEN` interno:
+
+- `GET /api/v1/catalog`
+- `GET /api/v1/catalog?model=...&flavor=...`
+- `GET /api/v1/conversations/{channel}/{customerId}`
+- `POST /api/v1/conversations/{channel}/{customerId}/human-messages`
+- `POST /api/v1/conversations/{channel}/{customerId}/resume`
+
+Capas:
+
+- `src/presentation/http`: controladores, autenticación y respuestas HTTP.
+- `src/application`: casos de uso de catálogo y conversaciones.
+- `src/domain`: tipos y conceptos del negocio.
+- `src/services`: reglas comerciales reutilizables.
+- `src/database`, `src/catalog`, `src/channels`, `src/notifications`:
+  adaptadores de infraestructura para SQLite, Sheets, Meta y Telegram.
+
+Los webhooks siguen siendo endpoints de eventos; no se convirtieron
+artificialmente en recursos REST porque Meta, WhatsApp y Tiendanube necesitan
+seguir enviándolos con sus contratos actuales.
+
+La explicación completa del recorrido de mensajes, las capas, las reglas y el
+esquema SQLite está en [`docs/ARQUITECTURA.md`](docs/ARQUITECTURA.md).
 
 ## Requisitos e instalación
 
