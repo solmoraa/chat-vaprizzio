@@ -20,9 +20,6 @@ import {
   casualStoryReply,
   isCasualStoryReaction,
 } from "./services/story-reply.js";
-import { CatalogUseCases } from "./application/catalog-use-cases.js";
-import { ConversationUseCases } from "./application/conversation-use-cases.js";
-import { createRestRouter } from "./presentation/http/rest-router.js";
 
 const piriMessageSchema = z
   .object({
@@ -163,17 +160,6 @@ export function createApp(d: AppDependencies) {
       instagram.subscription?.messagingPostbacks === true;
     return res.status(ok ? 200 : 503).json({ ok, channels });
   });
-
-  // API REST administrativa. Reutiliza los mismos casos de uso que los
-  // adaptadores de canales y permanece protegida por el token interno.
-  app.use(
-    "/api/v1",
-    createRestRouter({
-      token: d.config.TOOL_API_TOKEN,
-      catalog: new CatalogUseCases(d.tools.catalog),
-      conversations: new ConversationUseCases(d.conversations, d.takeover),
-    }),
-  );
 
   const deliverPausedArrival = async (
     channel: Channel,
