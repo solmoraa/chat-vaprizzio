@@ -75,7 +75,7 @@ const descriptions = {
     reportar_comprobante_mayorista: "OBLIGATORIA al recibir el comprobante de una venta mayorista con envío. Notifica a Telegram para preparar y despachar.",
     reportar_condicion_pago: "OBLIGATORIA si el cliente propone pagar al salir el vehículo o al recibir el producto. Notifica a Telegram y pausa la IA para que una persona decida.",
     iniciar_nuevo_tema: "Reinicio suave ante un saludo o consulta comercial claramente nueva: reactiva la IA, conserva el historial y evita arrastrar el asunto anterior salvo referencia explícita.",
-    reportar_consulta_fuera_horario: "OBLIGATORIA entre las 19 y las 23 ante una consulta con posible intención de compra, pedido o visita. Notifica a Telegram y pausa la IA.",
+    reportar_consulta_fuera_horario: "No la uses ante consultas de productos, marcas, sabores, precios o compras, aunque sea después de las 19. Solo corresponde si el cliente pregunta explícitamente por retirar, pasar o venir al punto de retiro; para ese caso usá preferentemente coordinar_visita_local.",
     buscar_sabor: "OBLIGATORIA cuando el cliente nombra o elige un sabor específico, incluso si escribe solamente el sabor. Devuelve disponibles y distingue OUT_OF_STOCK de NOT_FOUND. Tras responder el resultado, compartí siempre una sola vez la web general https://vaprizzio.com/ y aclarale que allí puede encontrar los productos disponibles. Nunca muestres productUrl individuales ni llames listar_catalogo para resolver un sabor específico.",
     buscar_modelo: "Busca una marca o modelo concreto y devuelve sus sabores y precios disponibles, distinguiendo agotados. No uses listar_catalogo para una marca o modelo específico. Tras responder, compartí la web general https://vaprizzio.com/ y aclarale que allí puede encontrar los productos disponibles; nunca muestres productUrl individuales.",
     buscar_producto: "OBLIGATORIA cuando el cliente ya indicó modelo y sabor. Devuelve AVAILABLE, OUT_OF_STOCK o NOT_FOUND. Tras responder el resultado, compartí siempre una sola vez la web general https://vaprizzio.com/ y aclarale que allí puede encontrar los productos disponibles. Nunca enumeres productos ajenos, muestres productUrl individuales ni ejecutes listar_catalogo.",
@@ -114,6 +114,10 @@ const requestsShoppingLink = (value) => {
 const requestsExplicitCatalog = (value) => {
     const text = normalizeInboundText(value);
     return /\b(catalogo|lista (?:completa|de precios)|todos los (?:vapes|modelos|sabores)|todo lo (?:que tienen|disponible)|que (?:vapes|modelos) tienen)\b/.test(text);
+};
+const requestsPickupVisit = (value) => {
+    const text = normalizeInboundText(value);
+    return /\b(retir\w*|pasar|venir|punto de retiro|larrazabal)\b/.test(text);
 };
 const requestsFiveToNineVapes = (value) => {
     const text = normalizeInboundText(value);
@@ -251,6 +255,7 @@ export default definePluginEntry({ id: "vaprizzio-tools", name: "Vaprizzio Comme
             const customerId = String(ctx?.senderId ?? "");
             const fiveToNineVapes = requestsFiveToNineVapes(prompt);
             const explicitCatalog = requestsExplicitCatalog(prompt);
+            const pickupVisit = requestsPickupVisit(prompt);
             const priceQuote = requestsPriceQuote(prompt);
             const uberDidiHandoff = requestsUberDidiHandoff(prompt);
             const rules = uberDidiHandoff
@@ -274,6 +279,8 @@ export default definePluginEntry({ id: "vaprizzio-tools", name: "Vaprizzio Comme
                             ];
             if (!explicitCatalog)
                 rules.push("PROHIBICION DE CATALOGO COMPLETO: este turno no contiene un pedido explícito de catálogo o lista completa. No ejecutes listar_catalogo. Si hay un sabor, marca, modelo o producto concreto, resolvelo solamente con buscar_sabor, buscar_modelo o buscar_producto y no nombres artículos ajenos.");
+            if (!pickupVisit)
+                rules.push("REGLA AUTOMATICA DE RETIRO: el cliente no mencionó retirar, pasar, venir al punto de retiro ni Larrazábal. Aunque sea después de las 19, está prohibido hablar del cierre, horario o punto de retiro, ejecutar reportar_consulta_fuera_horario o derivar a una persona. Respondé únicamente la consulta comercial.");
             if (freshTopic && ["whatsapp", "instagram", "messenger", "web"].includes(channel) && customerId) {
                 const config = (event?.context?.pluginConfig ?? api.pluginConfig);
                 const baseUrl = config?.baseUrl ?? "http://127.0.0.1:3000";
