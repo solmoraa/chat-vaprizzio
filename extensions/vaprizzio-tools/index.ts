@@ -76,10 +76,10 @@ const descriptions: Record<string, string> = {
   reportar_comprobante_mayorista:"OBLIGATORIA al recibir el comprobante de una venta mayorista con envío. Notifica a Telegram para preparar y despachar.",
   reportar_condicion_pago:"OBLIGATORIA si el cliente propone pagar al salir el vehículo o al recibir el producto. Notifica a Telegram y pausa la IA para que una persona decida.",
   iniciar_nuevo_tema:"Reinicio suave ante un saludo o consulta comercial claramente nueva: reactiva la IA, conserva el historial y evita arrastrar el asunto anterior salvo referencia explícita.",
-  reportar_consulta_fuera_horario:"OBLIGATORIA entre las 19 y las 23 ante una consulta con posible intención de compra, pedido o visita. Notifica a Telegram y pausa la IA.",
-  buscar_sabor:"OBLIGATORIA cuando el cliente nombra o elige un sabor específico, incluso si escribe solamente el sabor. Devuelve disponibles y distingue OUT_OF_STOCK de NOT_FOUND. Si hay stock, mostrá únicamente las coincidencias de ese sabor y enviá el productUrl exacto de cada producto; si falta productUrl usá https://www.vaprizzio.com/productos/. Nunca llames listar_catalogo para resolver un sabor específico.", 
-  buscar_modelo:"Busca una marca o modelo concreto y devuelve sus sabores y precios disponibles, distinguiendo agotados. No uses listar_catalogo para una marca o modelo específico. Compartí enlaces solo si el cliente eligió el producto o pidió comprar/ver el enlace.", 
-  buscar_producto:"OBLIGATORIA cuando el cliente ya indicó modelo y sabor. Devuelve AVAILABLE, OUT_OF_STOCK o NOT_FOUND. Si está AVAILABLE, enviá únicamente el productUrl exacto de ese producto; si falta usá https://www.vaprizzio.com/productos/. Si está OUT_OF_STOCK, decí que no queda stock. Nunca enumeres productos ajenos ni ejecutes listar_catalogo.", 
+  reportar_consulta_fuera_horario:"No la uses ante consultas de productos, marcas, sabores, precios o compras, aunque sea después de las 19. Solo corresponde si el cliente pregunta explícitamente por retirar, pasar o venir al punto de retiro; para ese caso usá preferentemente coordinar_visita_local.",
+  buscar_sabor:"OBLIGATORIA cuando el cliente nombra o elige un sabor específico, incluso si escribe solamente el sabor. Devuelve disponibles y distingue OUT_OF_STOCK de NOT_FOUND. Tras responder el resultado, compartí siempre una sola vez la web general https://vaprizzio.com/ y aclarale que allí puede encontrar los productos disponibles. Nunca muestres productUrl individuales ni llames listar_catalogo para resolver un sabor específico.",
+  buscar_modelo:"Busca una marca o modelo concreto y devuelve sus sabores y precios disponibles, distinguiendo agotados. No uses listar_catalogo para una marca o modelo específico. Tras responder, compartí la web general https://vaprizzio.com/ y aclarale que allí puede encontrar los productos disponibles; nunca muestres productUrl individuales.",
+  buscar_producto:"OBLIGATORIA cuando el cliente ya indicó modelo y sabor. Devuelve AVAILABLE, OUT_OF_STOCK o NOT_FOUND. Tras responder el resultado, compartí siempre una sola vez la web general https://vaprizzio.com/ y aclarale que allí puede encontrar los productos disponibles. Nunca enumeres productos ajenos, muestres productUrl individuales ni ejecutes listar_catalogo.",
   buscar_por_perfil:"Recomienda pocos productos disponibles por perfil. No incluyas URLs salvo pedido explícito de compra, enlace o catálogo.", 
   listar_catalogo:"Usala ÚNICAMENTE si el cliente pide de forma explícita catálogo, lista completa, todos los modelos o todo lo disponible. Está prohibida para un sabor, marca, modelo o producto específico y para una selección breve como Cherry Strazz. Devuelve modelos, precios y sabores con stock; nunca solicites intervención si devuelve models.", 
   consultar_stock:"Verifica disponibilidad; no reveles quantity salvo pregunta explícita.", 
@@ -121,6 +121,11 @@ const requestsShoppingLink = (value: unknown) => {
 const requestsExplicitCatalog = (value: unknown) => {
   const text = normalizeInboundText(value);
   return /\b(catalogo|lista (?:completa|de precios)|todos los (?:vapes|modelos|sabores)|todo lo (?:que tienen|disponible)|que (?:vapes|modelos) tienen)\b/.test(text);
+};
+
+const requestsPickupVisit = (value: unknown) => {
+  const text = normalizeInboundText(value);
+  return /\b(retir\w*|pasar|venir|punto de retiro|larrazabal)\b/.test(text);
 };
 
 const requestsFiveToNineVapes = (value: unknown) => {
@@ -261,6 +266,7 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
     const customerId = String(ctx?.senderId ?? "");
     const fiveToNineVapes = requestsFiveToNineVapes(prompt);
     const explicitCatalog = requestsExplicitCatalog(prompt);
+    const pickupVisit = requestsPickupVisit(prompt);
     const priceQuote = requestsPriceQuote(prompt);
     const uberDidiHandoff = requestsUberDidiHandoff(prompt);
     const rules: string[] = uberDidiHandoff
@@ -273,16 +279,17 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
     ]
   : priceQuote
     ? [
-        "REGLA AUTOMATICA PRIORITARIA DE PRECIO: si el cliente pregunta cuanto sale o a cuanto le queda un modelo, cotizalo con consultar_precio. Si no indico sabor, podes pasar el nombre del modelo en sku; no inventes un SKU ni digas que no esta disponible antes de resolver el modelo. 'Ice King' significa Elfbar Ice King. Si indico cantidad, pasa quantity y orderQuantity y responde con el precio unitario y el total devueltos. No mandes la web salvo que ademas la pida."
+        "REGLA AUTOMATICA PRIORITARIA DE PRECIO: si el cliente pregunta cuanto sale o a cuanto le queda un modelo, cotizalo con consultar_precio. Si no indico sabor, podes pasar el nombre del modelo en sku; no inventes un SKU ni digas que no esta disponible antes de resolver el modelo. 'Ice King' significa Elfbar Ice King. Si indico cantidad, pasa quantity y orderQuantity y responde con el precio unitario y el total devueltos. Para una consulta minorista de marca, modelo o sabor, agregá una sola vez: 'Podés encontrar los productos disponibles en nuestra web: https://vaprizzio.com/'. No apliques esto a pedidos de 5 o más, que se gestionan fuera de la web."
       ]
     : requestsShoppingLink(prompt)
       ? [
-          "REGLA AUTOMATICA DE ENLACES PARA ESTE TURNO: el cliente pidio comprar, ver el catalogo o recibir un enlace. Podes compartir una sola URL oficial pertinente; no repitas URLs ya enviadas en el mismo tema."
+          "REGLA AUTOMATICA DE ENLACES PARA ESTE TURNO: el cliente pidió comprar, ver el catálogo o recibir un enlace. Compartí únicamente la web general https://vaprizzio.com/ y aclarale que allí puede encontrar los productos disponibles; no muestres enlaces individuales ni repitas la URL en el mismo tema."
         ]
       : [
-          "REGLA AUTOMATICA PRIORITARIA PARA PRODUCTOS ESPECIFICOS: si el cliente nombra o elige un sabor, marca, modelo o producto concreto —aunque escriba solamente algo como Cherry Strazz— busca exclusivamente esa opción con buscar_sabor, buscar_modelo o buscar_producto. Está prohibido usar listar_catalogo o enumerar productos no relacionados. Si el resultado es AVAILABLE, respondé únicamente con las coincidencias pertinentes y el productUrl exacto; si falta productUrl usá https://www.vaprizzio.com/productos/. Si es OUT_OF_STOCK, decí claramente que no queda stock. Si es NOT_FOUND, decí que no lo tenemos. Para una consulta simple de disponibilidad o enlace no agregues características; la descripción de Tiendanube y datos como el botón de frescura del Ice King se usan solamente si piden información, comparación o recomendación."
+          "REGLA AUTOMATICA PRIORITARIA PARA PRODUCTOS ESPECIFICOS: si el cliente nombra o elige un sabor, marca, modelo o producto concreto —aunque escriba solamente algo como Cherry Strazz— busca exclusivamente esa opción con buscar_sabor, buscar_modelo o buscar_producto. Está prohibido usar listar_catalogo o enumerar productos no relacionados. Después de responder el resultado, enviá siempre una sola vez: 'Podés encontrar los productos disponibles en nuestra web: https://vaprizzio.com/'. Nunca muestres productUrl individuales. Si es OUT_OF_STOCK, decí claramente que no queda stock. Si es NOT_FOUND, decí que no lo tenemos. Para una consulta simple de disponibilidad o enlace no agregues características; la descripción de Tiendanube y datos como el botón de frescura del Ice King se usan solamente si piden información, comparación o recomendación."
         ];
     if (!explicitCatalog) rules.push("PROHIBICION DE CATALOGO COMPLETO: este turno no contiene un pedido explícito de catálogo o lista completa. No ejecutes listar_catalogo. Si hay un sabor, marca, modelo o producto concreto, resolvelo solamente con buscar_sabor, buscar_modelo o buscar_producto y no nombres artículos ajenos.");
+    if (!pickupVisit) rules.push("REGLA AUTOMATICA DE RETIRO: el cliente no mencionó retirar, pasar, venir al punto de retiro ni Larrazábal. Aunque sea después de las 19, está prohibido hablar del cierre, horario o punto de retiro, ejecutar reportar_consulta_fuera_horario o derivar a una persona. Respondé únicamente la consulta comercial.");
     if (freshTopic && ["whatsapp", "instagram", "messenger", "web"].includes(channel) && customerId) {
       const config=(event?.context?.pluginConfig ?? (api as unknown as {pluginConfig?:{baseUrl?:string;apiToken?:string}}).pluginConfig) as {baseUrl?:string;apiToken?:string} | undefined;
       const baseUrl=config?.baseUrl ?? "http://127.0.0.1:3000";

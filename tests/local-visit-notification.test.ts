@@ -97,7 +97,7 @@ describe("punto de retiro y coordinación humana", () => {
     }));
     expect(result).toMatchObject({
       action:"COORDINAR_MANANA",
-      customerMessage:"El horario de retiro por hoy ya terminó. Podrías pasar mañana; dame un segundo que coordinamos el horario.",
+      customerMessage:"ℹ️ Información importante\nEl horario de retiro por Av. Larrazábal 3437 es de 10 a 19 hs.\n\nEl horario de retiro por hoy ya terminó. Podrías pasar mañana; dame un segundo que coordinamos el horario.",
       state:"WAITING_HUMAN"
     });
     expect(JSON.stringify(result)).not.toMatch(/vaprizzio\.com|Uber|Didi/i);
