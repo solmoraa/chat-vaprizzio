@@ -6,8 +6,8 @@ import { ConversationRepository } from "../src/database/conversation-repository.
 import { CartService } from "../src/services/cart-service.js";
 import { fixture } from "./helpers.js";
 describe("seguridad operativa", () => {
-  it("espera 8 segundos desde el último mensaje y agrupa la conversación", async () => { vi.useFakeTimers(); const d=new MessageDebouncer(8000); const fn=vi.fn(); d.push("x","Hola",fn); await vi.advanceTimersByTimeAsync(4000); d.push("x","ya compré por la web",fn); await vi.advanceTimersByTimeAsync(7999); expect(fn).not.toHaveBeenCalled(); await vi.advanceTimersByTimeAsync(1); expect(fn).toHaveBeenCalledWith(["Hola","ya compré por la web"]); vi.useRealTimers(); });
-  it("usa 8 segundos como espera predeterminada", () => expect(loadConfig({}).DEBOUNCE_MS).toBe(8000));
+  it("espera 6 segundos desde el último mensaje y agrupa la conversación", async () => { vi.useFakeTimers(); const d=new MessageDebouncer(6000); const fn=vi.fn(); d.push("x","Hola",fn); await vi.advanceTimersByTimeAsync(3000); d.push("x","tenes Miami?",fn); await vi.advanceTimersByTimeAsync(5999); expect(fn).not.toHaveBeenCalled(); await vi.advanceTimersByTimeAsync(1); expect(fn).toHaveBeenCalledWith(["Hola","tenes Miami?"]); vi.useRealTimers(); });
+  it("usa 6 segundos como espera predeterminada", () => expect(loadConfig({}).DEBOUNCE_MS).toBe(6000));
   it("limita conexiones externas y ejecuciones atascadas", () => {
     const config = loadConfig({});
     expect(config.EXTERNAL_REQUEST_TIMEOUT_MS).toBe(10000);

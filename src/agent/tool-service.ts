@@ -256,7 +256,7 @@ return {
         const details = [product, preferredTime ? `Horario propuesto: ${preferredTime}` : ""].filter(Boolean);
         if (buenosAiresHour() >= 19) {
           const result = await this.takeover.request(channel, customerId, `Coordinar mañana: el horario de ${label} terminó por hoy`, undefined, details.length ? details : undefined);
-          return { action:"COORDINAR_MANANA", customerMessage:"ℹ️ Información importante\nEl horario de retiro por Av. Larrazábal 3437 es de 10 a 19 hs.\n\nEl horario de retiro por hoy ya terminó. Podrías pasar mañana; dame un segundo que coordinamos el horario.", address:"Av. Larrazábal 3437, Villa Lugano, CABA", pickupType:"PUNTO_DE_RETIRO_GRATUITO", scheduleConfirmed:false, state:result.state, pausedUntil:result.pausedUntil };
+          return { action:"COORDINAR_MANANA", customerMessage:"El horario de retiro por hoy ya terminó. Podrías pasar mañana; dame un segundo que coordinamos el horario.", address:"Av. Larrazábal 3437, Villa Lugano, CABA", pickupType:"PUNTO_DE_RETIRO_GRATUITO", scheduleConfirmed:false, state:result.state, pausedUntil:result.pausedUntil };
         }
         const result = await this.takeover.request(channel, customerId, `Coordinar horario para ${label}`, undefined, details.length ? details : undefined);
         return { action: "COORDINAR_HORARIO", customerMessage: "Dame un segundo que coordinamos el horario", address: "Av. Larrazábal 3437, Villa Lugano, CABA", pickupType:"PUNTO_DE_RETIRO_GRATUITO", scheduleConfirmed:false, state: result.state, pausedUntil: result.pausedUntil };

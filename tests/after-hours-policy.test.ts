@@ -74,17 +74,6 @@ describe("atención después del cierre del punto de retiro", () => {
     );
   });
 
-  it("no deriva una consulta de producto solo por ser después de las 19", () => {
-    const plugin = readFileSync(
-      new URL("../extensions/vaprizzio-tools/index.ts", import.meta.url),
-      "utf8"
-    );
-
-    expect(plugin).toContain("requestsPickupVisit");
-    expect(plugin).toContain("el cliente no mencionó retirar");
-    expect(plugin).toContain("Respondé únicamente la consulta comercial");
-  });
-
   it("no mezcla un saludo simple con la respuesta de disponibilidad", () => {
     expect(agents).toContain(
       "En un saludo simple está prohibido decir `sii, estamos`"

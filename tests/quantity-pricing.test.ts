@@ -117,14 +117,13 @@ describe("precios por cantidad", () => {
 });
 
 describe("uso contextual de enlaces", () => {
-  it("envía una única web general para productos específicos", () => {
+  it("prohíbe repetir la web y mantiene los enlaces solo cuando son necesarios", () => {
     const skill = readFileSync("skills/ventas/SKILL.md", "utf8");
     const agents = readFileSync("openclaw/workspace/AGENTS.md", "utf8");
     for (const text of [skill, agents]) {
       expect(text).toMatch(/no (?:lo )?repitas/i);
-      expect(text).toContain("https://vaprizzio.com/");
-      expect(text).toMatch(/marca, modelo, vape o sabor específico/i);
-      expect(text).toMatch(/productos disponibles/i);
+      expect(text).toContain("precio, stock, sabores, características");
+      expect(text).toMatch(/pide el enlace|pide.*cómo comprar/i);
     }
   });
 

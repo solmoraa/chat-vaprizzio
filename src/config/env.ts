@@ -34,7 +34,7 @@ const schema = z.object({
   PIRI_INTERNAL_SECRET: z.string().default(""),
   TOOL_API_TOKEN: z.string().default(""),
   TOOL_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(120),
-  DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(8000),
+  DEBOUNCE_MS: z.coerce.number().int().nonnegative().default(6000),
   CATALOG_CACHE_MS: z.coerce.number().int().nonnegative().default(5000),
   EXTERNAL_REQUEST_TIMEOUT_MS: z.coerce
     .number()

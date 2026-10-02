@@ -10,9 +10,9 @@ describe("intención general de comprar un vape", () => {
       expect(instructions).toContain("no sé qué vape quiero");
       expect(instructions).toContain("Te dejo la página para que elijas el vape de la marca que quieras");
       expect(instructions).toContain("sabores disponibles");
-      expect(instructions.indexOf("sabores disponibles")).toBeLessThan(instructions.indexOf("https://vaprizzio.com/", instructions.indexOf("no sé qué vape quiero")));
+      expect(instructions.indexOf("sabores disponibles")).toBeLessThan(instructions.indexOf("https://www.vaprizzio.com/productos/", instructions.indexOf("no sé qué vape quiero")));
       expect(instructions).toContain("Si tenés alguna otra duda escribime");
-      expect(instructions).toContain("https://vaprizzio.com/");
+      expect(instructions).toContain("https://www.vaprizzio.com/productos/");
     }
   });
 
@@ -35,17 +35,17 @@ describe("intención general de comprar un vape", () => {
   });
 
   it("no vuelve a ofrecer enlaces que ya fueron enviados", () => {
-    expect(agents).toContain("No ofrezcas enlaces individuales");
+    expect(agents).toContain("Si ya incluiste uno o más enlaces directos de productos");
     expect(agents).toContain("Te gusta alguno para que te pase el link?");
-    expect(skill).toContain("Nunca muestres enlaces individuales");
-    expect(skill).toContain("No repitas la misma web");
+    expect(skill).toContain("Si la respuesta ya contiene uno o más `productUrl`");
+    expect(skill).toContain("no ofrezcas pasarlos después");
   });
 
   it("lista dinámicamente todos los modelos de una marca", () => {
     for (const instructions of [agents, skill]) {
       expect(instructions).toMatch(/agrupá por modelo/is);
       expect(instructions).toContain("Google Sheets");
-      expect(instructions).toContain("https://vaprizzio.com/");
+      expect(instructions).toContain("https://www.vaprizzio.com/productos/");
       expect(instructions).toContain("tenemos estos modelos disponibles");
       expect(instructions).toContain("[MODELO");
       expect(instructions).toMatch(/(nunca|prohibido).+Dame un segundo que lo consulto/is);
