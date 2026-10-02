@@ -27,7 +27,7 @@ function formatGroupedMessages(messages: string[]) {
     `Cantidad de mensajes: ${cleanMessages.length}`,
     `El primer mensaje comienza con un saludo: ${startsWithGreeting ? "SI" : "NO"}`,
     startsWithGreeting
-      ? "Si además hay una consulta concreta, saludá una sola vez antes de responderla. No omitas el saludo."
+      ? "El saludo no cambia la intención de los mensajes posteriores: si el bloque contiene una compra ya hecha, comprobante, reclamo, entrega o cualquier consulta concreta, respondé ese asunto y nunca preguntes 'Buscabas algún vape?'. Saludá como máximo una vez y solo si resulta natural."
       : "No inventes un saludo previo que el cliente no haya enviado.",
     "",
     formattedMessages,
