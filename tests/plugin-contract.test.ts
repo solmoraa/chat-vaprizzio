@@ -85,6 +85,6 @@ describe("contrato del plugin OpenClaw", () => {
     expect(source).toContain("requestsShoppingLink");
     expect(source).toContain("requestsExplicitCatalog");
     expect(source).toContain("PROHIBICION DE CATALOGO COMPLETO");
-    expect(source).toContain("productUrl exacto");
+    expect(source).toContain("no envíes URL: es una consulta de disponibilidad, no una compra");
   });
 });

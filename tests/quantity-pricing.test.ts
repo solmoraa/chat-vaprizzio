@@ -122,8 +122,8 @@ describe("uso contextual de enlaces", () => {
     const agents = readFileSync("openclaw/workspace/AGENTS.md", "utf8");
     for (const text of [skill, agents]) {
       expect(text).toMatch(/no (?:lo )?repitas/i);
-      expect(text).toContain("precio, stock, sabores, características");
-      expect(text).toMatch(/pide el enlace|pide.*cómo comprar/i);
+      expect(text).toMatch(/(?:disponibilidad|stock|precio)[^.]{0,100}sin (?:link|URL)|no (?:mandes|compartas) (?:la )?(?:web|URL)/i);
+      expect(text).toMatch(/quiere comprar|pide (?:link|enlace)|cómo comprar/i);
     }
   });
 
