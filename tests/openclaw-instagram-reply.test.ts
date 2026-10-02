@@ -37,9 +37,21 @@ describe("respuesta de OpenClaw para Instagram", () => {
     expect(prompt).toContain("[INTERVENCION_AGRUPADA]");
 expect(prompt).toContain("Cantidad de mensajes: 2");
 expect(prompt).toContain("El primer mensaje comienza con un saludo: SI");
+expect(prompt).toContain("El saludo no cambia la intención de los mensajes posteriores");
 expect(prompt).toContain("[Mensaje del cliente 1/2]\nhola");
 expect(prompt).toContain("[Mensaje del cliente 2/2]\ntenés Miami Mint?");
 expect(prompt).toContain("[FIN_INTERVENCION_AGRUPADA]");
+  });
+  it("prioriza una compra ya hecha después de un saludo agrupado", async () => {
+    const runner = vi.fn().mockResolvedValue({ stdout:'{"finalAssistantVisibleText":"Dale! Cuando tengas el comprobante mandamelo por acá 😊"}' });
+    const client = new OpenClawClient("http://127.0.0.1:18789", "token", "vaprizzio-sales-test", "openclaw", runner);
+
+    await client.reply("whatsapp", "wa-123", ["Hola", "ya compré por la web"]);
+
+    const args = runner.mock.calls[0]![1];
+    const prompt = args[args.indexOf("--message") + 1];
+    expect(prompt).toContain("[Mensaje del cliente 2/2]\nya compré por la web");
+    expect(prompt).toContain("nunca preguntes 'Buscabas algún vape?'");
   });
   it("lee el texto desde result.payloads en versiones nuevas de OpenClaw", async () => {
     const runner = vi.fn().mockResolvedValue({

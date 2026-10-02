@@ -12,7 +12,7 @@ Agente de atención y ventas para Vaprizzio. WhatsApp (mediante OpenClaw), Insta
 - Filtro obligatorio `Activo=SI` y `Stock>0`.
 - Herramientas deterministas para precio, stock, negocio, mayorista, carrito, resumen y takeover.
 - Memoria SQLite aislada por `channel + customer_id`.
-- Debounce configurable desde el último mensaje, igual en WhatsApp, Messenger, Instagram y Web. El valor predeterminado es 6 segundos y puede sobrescribirse con `DEBOUNCE_MS`.
+- Debounce configurable desde el último mensaje, igual en WhatsApp, Messenger, Instagram y Web. El valor predeterminado es 8 segundos y puede sobrescribirse con `DEBOUNCE_MS`.
 - Estados `AI_ACTIVE`, `WAITING_HUMAN`, `HUMAN_ACTIVE`; en los dos últimos la capa bloquea herramientas de IA.
 - Precio negociado persistente y reanudación explícita.
 - Instagram con verificación de webhook y firma HMAC.
@@ -217,7 +217,7 @@ git pull --ff-only
 npm ci
 npm run verify
 npm run build
-sed -i 's/^DEBOUNCE_MS=.*/DEBOUNCE_MS=6000/' .env
+sed -i 's/^DEBOUNCE_MS=.*/DEBOUNCE_MS=8000/' .env
 grep -q '^CATALOG_CACHE_MS=' .env || printf 'CATALOG_CACHE_MS=5000\n' >> .env
 grep -q '^EXTERNAL_REQUEST_TIMEOUT_MS=' .env || printf 'EXTERNAL_REQUEST_TIMEOUT_MS=10000\n' >> .env
 grep -q '^OPENCLAW_AGENT_TIMEOUT_SECONDS=' .env || printf 'OPENCLAW_AGENT_TIMEOUT_SECONDS=60\n' >> .env
