@@ -103,39 +103,62 @@ const normalizeInboundText = (value: unknown) => String(value ?? "")
   .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/[^a-z0-9!? ]/g, " ").replace(/\s+/g, " ").trim();
 
+/*
+ * El prompt de OpenClaw puede contener partes de turnos anteriores. Las
+ * decisiones comerciales se toman exclusivamente con la intervención que
+ * llegó ahora; de lo contrario un "hola" o un link viejo reaparece en cada
+ * respuesta.
+ */
+const currentInboundText = (value: unknown) => {
+  const prompt = String(value ?? "");
+  const block = [...prompt.matchAll(/\[INTERVENCION_AGRUPADA\]([\s\S]*?)\[FIN_INTERVENCION_AGRUPADA\]/g)].at(-1);
+  if (!block) return prompt;
+
+  const messages = [...block[1].matchAll(/\[Mensaje del cliente \d+\/\d+\]\s*\n([\s\S]*?)(?=\n\n\[Mensaje del cliente|\s*$)/g)]
+    .map((match) => match[1].trim())
+    .filter(Boolean);
+  return messages.join("\n");
+};
+
+const isOnlyGreeting = (value: unknown) => /^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)[!? ]*$/.test(
+  normalizeInboundText(currentInboundText(value)),
+);
+
 const startsFreshTopic = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
   const startsWithGreeting = /^(hola|holaa+|buenas|buen dia|buenos dias|buenas tardes|buenas noches|como estas)(\b|[!?])/.test(text);
   const explicitContinuation = /\b(mi pedido|mi comprobante|ese envio|el envio que|el uber que|el didi que|lo de antes|lo anterior|seguimos con|sigo con)\b/.test(text);
   return startsWithGreeting && !explicitContinuation;
 };
 
 const requestsShoppingLink = (value: unknown) => {
-  const text = normalizeInboundText(value);
-  return /\b(link|enlace|pagina|web|tienda|catalogo)\b/.test(text)
+  const text = normalizeInboundText(currentInboundText(value));
+  return /\b(pasame|mandame|dame|quiero|necesito|tenes)\s+(?:el )?(link|enlace|pagina|web)\b/.test(text)
+    || /\b(pasame|mandame|dame|quiero ver|mostrame)\s+(?:el )?catalogo\b/.test(text)
+    || /\bcatalogo\s*[?¡!]?$/.test(text)
     || /\b(como|donde)\s+(compro|comprar|hago el pedido|hago la compra)\b/.test(text)
     || /\b(quiero|quisiera|voy a)\s+(comprar|pedir|hacer el pedido)\b/.test(text)
     || /\b(no se|quiero ver|mostrame|pasame)\b[\s\S]{0,35}\b(cual|cuales|modelos|vapes|catalogo)\b/.test(text);
 };
 
 const requestsExplicitCatalog = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
   return /\b(catalogo|lista (?:completa|de precios)|todos los (?:vapes|modelos|sabores)|todo lo (?:que tienen|disponible)|que (?:vapes|modelos) tienen)\b/.test(text);
 };
 
 const reportsWebPurchase = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
   return /\b(ya|recien)\s+(compre|hice la compra|hice un pedido)\b[\s\S]{0,35}\b(web|pagina|tienda)\b/.test(text)
     || /\bcompre\s+por\s+(la\s+)?(web|pagina|tienda)\b/.test(text);
 };
 
 const requestsPickupVisit = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
   return /\b(retir\w*|pasar|venir|punto de retiro|larrazabal)\b/.test(text);
 };
 
 const requestsFiveToNineVapes = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
 
   const hasQuantity =
     /\b(5|6|7|8|9|cinco|seis|siete|ocho|nueve)\b/.test(text);
@@ -147,13 +170,13 @@ const requestsFiveToNineVapes = (value: unknown) => {
 };
 
 const requestsPriceQuote = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
 
   return /\b(cuanto|precio|sale|salen|queda|quedan|costaria|cuesta)\b/.test(text);
 };
 
 const requestsUberDidiHandoff = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
 
   const mentionsUberDidi =
     /\b(uber|didi)\b/.test(text);
@@ -165,7 +188,7 @@ const requestsUberDidiHandoff = (value: unknown) => {
 };
 
 const defectivePurchaseAge = (value: unknown) => {
-  const text = normalizeInboundText(value);
+  const text = normalizeInboundText(currentInboundText(value));
   if (!/\b(fallad[oa]?|falla|anda mal|no funciona|roto|quemado|problema)\b/.test(text)) return null;
   if (/\b(hoy|lo compre hoy|compre hoy)\b/.test(text)) return 0;
   if (/\b(ayer|lo compre ayer|compre ayer)\b/.test(text)) return 1;
@@ -185,6 +208,8 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
   const alertedRuns = new Set<string>();
   const suppressedRuns = new Set<string>();
   const requiredCustomerMessages = new Map<string, string>();
+  const linkAllowedRuns = new Map<string, boolean>();
+  const onlyGreetingRuns = new Map<string, boolean>();
   api.on("after_tool_call", async (event: any) => {
     if (!event?.runId || event.error) return;
     const runId = String(event.runId);
@@ -222,6 +247,28 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
     if (!isVaprizzioSalesAgent(ctx?.agentId)) return;
     const text = String(event?.lastAssistantMessage ?? "");
     const runId = String(event?.runId ?? "");
+    if (runId && !linkAllowedRuns.get(runId) && /https?:\/\/\S+/i.test(text)) {
+      return {
+        action:"revise",
+        reason:"El cliente no pidió comprar ni recibir un enlace en esta intervención.",
+        retry:{
+          instruction:"Quitá toda URL de la respuesta. Respondé solo la consulta actual; no ofrezcas ni repitas la web.",
+          idempotencyKey:`vaprizzio-unrequested-link:${runId}`,
+          maxAttempts:1
+        }
+      };
+    }
+    if (runId && !onlyGreetingRuns.get(runId) && /buscabas\s+alg[uú]n\s+vape/i.test(text)) {
+      return {
+        action:"revise",
+        reason:"El saludo genérico solo corresponde a un saludo sin consulta.",
+        retry:{
+          instruction:"No preguntes 'Buscabas algún vape?'. Respondé directamente el asunto del mensaje actual, sin arrastrar saludos de turnos anteriores.",
+          idempotencyKey:`vaprizzio-greeting-only:${runId}`,
+          maxAttempts:1
+        }
+      };
+    }
     if (runId && suppressedRuns.has(runId) && text.trim() !== "NO_REPLY") {
       return {
         action:"revise",
@@ -262,21 +309,28 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
     alertedRuns.delete(String(event.runId));
     suppressedRuns.delete(String(event.runId));
     requiredCustomerMessages.delete(String(event.runId));
+    linkAllowedRuns.delete(String(event.runId));
+    onlyGreetingRuns.delete(String(event.runId));
   });
   api.on("before_prompt_build", async (event: any, ctx: any) => {
     if (!isVaprizzioSalesAgent(ctx?.agentId)) return;
     const prompt = String(event?.prompt ?? "");
-    const freshTopic = startsFreshTopic(prompt);
-    const purchaseAge = defectivePurchaseAge(prompt);
+    const inbound = currentInboundText(prompt);
+    const freshTopic = startsFreshTopic(inbound);
+    const purchaseAge = defectivePurchaseAge(inbound);
     const channel = String(ctx?.channel ?? ctx?.messageProvider ?? "");
     const customerId = String(ctx?.senderId ?? "");
-    const fiveToNineVapes = requestsFiveToNineVapes(prompt);
-    const explicitCatalog = requestsExplicitCatalog(prompt);
-    const pickupVisit = requestsPickupVisit(prompt);
-    const priceQuote = requestsPriceQuote(prompt);
-    const shoppingLink = requestsShoppingLink(prompt);
-    const webPurchaseAlreadyMade = reportsWebPurchase(prompt);
-    const uberDidiHandoff = requestsUberDidiHandoff(prompt);
+    const fiveToNineVapes = requestsFiveToNineVapes(inbound);
+    const explicitCatalog = requestsExplicitCatalog(inbound);
+    const pickupVisit = requestsPickupVisit(inbound);
+    const priceQuote = requestsPriceQuote(inbound);
+    const shoppingLink = requestsShoppingLink(inbound);
+    const webPurchaseAlreadyMade = reportsWebPurchase(inbound);
+    const uberDidiHandoff = requestsUberDidiHandoff(inbound);
+    if (event?.runId) {
+      linkAllowedRuns.set(String(event.runId), shoppingLink && !webPurchaseAlreadyMade && !fiveToNineVapes);
+      onlyGreetingRuns.set(String(event.runId), isOnlyGreeting(inbound));
+    }
     const rules: string[] = webPurchaseAlreadyMade
   ? [
       "REGLA AUTOMATICA DE COMPRA YA HECHA: el cliente ya compró por la web. No respondas 'Buscabas algún vape?' aunque haya empezado con saludo y no envíes otra URL. Si todavía no adjuntó comprobante real, respondé exactamente: Dale! Cuando tengas el comprobante mandamelo por acá 😊. No ejecutes reportar_comprobante_web ni alertes a Telegram hasta recibir el comprobante."
@@ -308,7 +362,7 @@ export default definePluginEntry({ id:"vaprizzio-tools", name:"Vaprizzio Commerc
       const response=await fetch(`${baseUrl}/api/tools/iniciar_nuevo_tema`, {
         method:"POST",
         headers:{"content-type":"application/json",...(config?.apiToken ? {authorization:`Bearer ${config.apiToken}`} : {})},
-        body:JSON.stringify({channel,customerId,triggerMessage:prompt})
+        body:JSON.stringify({channel,customerId,triggerMessage:inbound})
       });
       if (!response.ok) throw new Error(`VAPRIZZIO_TOPIC_RESET_ERROR:${response.status}`);
       rules.push("REGLA AUTOMATICA YA EJECUTADA: este saludo abre una conversacion nueva. Si es solo un saludo, saluda y pregunta si buscaba algun vape. Si incluye una consulta, respondela normalmente. No menciones comprobantes, coordinaciones, pausas ni el tema anterior, salvo que el cliente lo relacione explicitamente.");

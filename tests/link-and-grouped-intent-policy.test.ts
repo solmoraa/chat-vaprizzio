@@ -24,6 +24,16 @@ describe("intención agrupada y enlaces comerciales", () => {
     expect(plugin).toContain("no envíes URL: es una consulta de disponibilidad, no una compra");
   });
 
+  it("decide saludo y enlace con el bloque actual, no con mensajes anteriores", () => {
+    expect(plugin).toContain("currentInboundText");
+    expect(plugin).toContain("matchAll(/\\[INTERVENCION_AGRUPADA");
+    expect(plugin).toContain(".at(-1)");
+    expect(plugin).toContain("linkAllowedRuns");
+    expect(plugin).toContain("vaprizzio-unrequested-link");
+    expect(plugin).toContain("vaprizzio-greeting-only");
+    expect(plugin).not.toContain('return /\\b(link|enlace|pagina|web|tienda|catalogo)\\b/.test(text)');
+  });
+
   it("manda solo la web general cuando hay intención explícita de compra", () => {
     for (const instructions of [agents, skill]) {
       expect(instructions).toContain("https://vaprizzio.com/");
